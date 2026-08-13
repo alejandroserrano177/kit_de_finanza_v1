@@ -194,7 +194,14 @@ $("guardarLimitesDistribucion").onclick=()=>{document.querySelectorAll("#listaDi
 
 $("limpiarMovimientos").onclick=()=>{if(confirm("¿Seguro que quieres eliminar todos los movimientos? Esta acción no se puede deshacer.")){movimientos=[];render()}};
 $("filtroCategoria").onchange=renderHistorial;$("filtroTipo").onchange=renderHistorial;$("filtroPeriodo").onchange=renderHistorial;$("filtroDesde").onchange=renderHistorial;$("filtroHasta").onchange=renderHistorial;
-$("gestionarMovimientos").onclick=()=>{$("seccionHistorial").scrollIntoView({behavior:"smooth"})};
+$("gestionarMovimientos").onclick=()=>{
+  renderHistorial(true);
+  $("seccionHistorial").style.display="block";
+  $("seccionHistorial").scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  });
+};
 function exportar(filtro){let arr=movimientos.slice();if(filtro==="semana")arr=arr.filter(m=>(Date.now()-new Date(m.fecha))/86400000<=7);if(filtro==="mes"){const n=new Date();arr=arr.filter(m=>{const d=new Date(m.fecha);return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear()})}const csv="Fecha,Tipo,Categoría,Monto,Descripción,Tipo de gasto\n"+arr.map(m=>[fechaTexto(m.fecha),m.tipo,m.categoria==="ahorro"?"Ahorro":(m.categoria==="retiro_ahorro"?"Retiro de ahorro":(distribucion.find(c=>c.id===m.categoria)?.nombre||m.categoria)),m.monto,m.descripcion,m.tipoGasto||""].map(x=>`"${String(x??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download=`finanzas_${filtro}.csv`;a.click();URL.revokeObjectURL(a.href)}
 $("exportarSemana").onclick=()=>exportar("semana");$("exportarMes").onclick=()=>exportar("mes");$("exportarTodo").onclick=()=>exportar("todo");
 $("botonConfiguracion").onclick=()=>alert("La configuración de cuenta y datos se mantiene local en este dispositivo. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos.");
