@@ -159,6 +159,21 @@ function renderHistorial(completo=false){
 
   $("contadorHistorial").textContent=
     `${listaCompleta.length} movimiento${listaCompleta.length===1?"":"s"}`;
+
+  const recientes=$("movimientosRecientes");
+
+if(recientes){
+  const ultimos=listaCompleta.slice(0,3);
+
+  recientes.innerHTML=ultimos.length
+    ? ultimos.map(renderMovimiento).join("")
+    : `<div class="historial-vacio">
+        <span>📋</span>No hay movimientos todavía.
+      </div>`;
+
+  $("contadorMovimientosRecientes").textContent=
+    `${ultimos.length} movimiento${ultimos.length===1?"":"s"}`;
+}
 }
 function renderMovimiento(m){const esIngreso=m.tipo==="ingreso",esAhorro=m.tipo==="ahorro",esRetiro=m.tipo==="retiro_ahorro",cat=distribucion.find(c=>c.id===m.categoria),icon=esIngreso?"💰":esAhorro?"💎":esRetiro?"↩️":cat?.icono||"💸",nombre=esIngreso?"Ingreso":esAhorro?"Aporte a ahorro":esRetiro?"Retiro de ahorro":cat?.nombre||"Gasto";const signo=esIngreso?"+":esRetiro?"↩":"-";return `<div class="movimiento-historial"><div class="movimiento-principal"><div class="movimiento-icono">${icon}</div><div><strong>${escapeHtml(m.descripcion||nombre)}</strong><small>${escapeHtml(nombre)} · ${fechaTexto(m.fecha)}${m.origenFijo?" · Gasto fijo":""}</small></div></div><div class="movimiento-valor"><strong class="${esIngreso?"ingreso":esRetiro?"retiro":"gasto"}">${signo}${money(m.monto)}</strong><br><button class="boton-secundario boton-pequeno" onclick="editarMovimiento('${m.id}')">Editar</button> <button class="boton-eliminar" onclick="eliminarMovimiento('${m.id}')">✕</button></div></div>`}
 
