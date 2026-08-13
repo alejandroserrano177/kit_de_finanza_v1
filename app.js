@@ -1,207 +1,248 @@
-const $=id=>document.getElementById(id);
-const money=n=>"$"+Number(n||0).toFixed(2);
-const USERS_KEY="kf_usuarios_v2", SESSION_KEY="kf_sesion_v2";
+const $ = id => document.getElementById(id);
+const money = n => "$" + Number(n || 0).toFixed(2);
 
-const DEFAULT_CATEGORIAS={
-  alimentacion:["🍽️","Alimentación",150],
-  vivienda:["🏠","Vivienda",150],
-  transporte:["🚌","Transporte",100],
-  comunicaciones:["📱","Comunicaciones",50],
-  familia:["❤️","Familia",100],
-  educacion:["🎓","Educación",75],
-  inversion:["📈","Inversión",100],
-  otros:["📦","Otros",75]
+const USERS_KEY = "kf_usuarios_v2";
+const SESSION_KEY = "kf_sesion_v2";
+
+const DEFAULT_CATEGORIAS = {
+  alimentacion: ["🍽️", "Alimentación", 150],
+  vivienda: ["🏠", "Vivienda", 150],
+  transporte: ["🚌", "Transporte", 100],
+  comunicaciones: ["📱", "Comunicaciones", 50],
+  familia: ["❤️", "Familia", 100],
+  educacion: ["🎓", "Educación", 75],
+  inversion: ["📈", "Inversión", 100],
+  otros: ["📦", "Otros", 75]
 };
 
-let usuario=null, movimientos=[], gastosFijos=[], categorias={}, distribucion=[];
+let usuario = null;
+let movimientos = [];
+let gastosFijos = [];
+let categorias = {};
+let distribucion = [];
 
-async function hashPassword(password){
-  const data=new TextEncoder().encode(password);
-  const hash=await crypto.subtle.digest("SHA-256",data);
+/* =========================================================
+   SEGURIDAD / LOCALSTORAGE
+   ========================================================= */
+
+async function hashPassword(password) {
+  const data = new TextEncoder().encode(password);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+
   return [...new Uint8Array(hash)]
-    .map(b=>b.toString(16).padStart(2,"0"))
+    .map(b => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-function leerLocal(key,fallback=null){
-  try{
-    const v=localStorage.getItem(key);
-    return v===null?fallback:JSON.parse(v);
-  }catch{
+function leerLocal(key, fallback = null) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : JSON.parse(v);
+  } catch {
     return fallback;
   }
 }
 
-function escribirLocal(key,value){
-  try{
-    localStorage.setItem(key,JSON.stringify(value));
+function escribirLocal(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
     return true;
-  }catch{
+  } catch (error) {
+    console.error("No se pudo guardar:", key, error);
     return false;
   }
 }
 
-function usuarios(){
-  return leerLocal(USERS_KEY,[]);
+function usuarios() {
+  return leerLocal(USERS_KEY, []);
 }
 
-function guardarUsuarios(lista){
-  return escribirLocal(USERS_KEY,lista);
+function guardarUsuarios(lista) {
+  return escribirLocal(USERS_KEY, lista);
 }
 
-function userKey(s){
-  return `kf_${usuario.id}_${s}`;
+function userKey(nombre) {
+  return `kf_${usuario.id}_${nombre}`;
 }
 
-function hoyISO(){
-  const d=new Date();
-  d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
-  return d.toISOString().slice(0,10);
+function guardarDatos() {
+  if (!usuario) return;
+
+  escribirLocal(userKey("movimientos"), movimientos);
+  escribirLocal(userKey("fijos"), gastosFijos);
+  escribirLocal(userKey("distribucion"), distribucion);
 }
 
-function fechaTexto(v){
-  if(!v)return "";
-  const d=new Date(v.includes("T")?v:v+"T12:00:00");
+function guardarMovimientos() {
+  if (!usuario) return;
+  escribirLocal(userKey("movimientos"), movimientos);
+}
+
+function guardarFijos() {
+  if (!usuario) return;
+  escribirLocal(userKey("fijos"), gastosFijos);
+}
+
+function guardarDistribucion() {
+  if (!usuario) return;
+  escribirLocal(userKey("distribucion"), distribucion);
+}
+
+/* =========================================================
+   FECHAS
+   ========================================================= */
+
+function hoyISO() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+function fechaTexto(v) {
+  if (!v) return "";
+
+  const d = new Date(
+    v.includes("T") ? v : v + "T12:00:00"
+  );
+
   return d.toLocaleDateString("es-EC");
 }
 
-function escapeHtml(s){
-  return String(s??"").replace(
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(
     /[&<>"']/g,
-    c=>({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      "\"":"&quot;",
-      "'":"&#039;"
+    c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#039;"
     }[c])
   );
 }
 
-function cargarDatos(){
-  try{
-    movimientos=leerLocal(userKey("movimientos"),[]);
-    gastosFijos=leerLocal(userKey("fijos"),[]);
+function migrarEstructuras() {
+  gastosFijos = gastosFijos.map(g => ({
+    ...g,
+    activo: g.activo !== false,
+    creado: g.creado || new Date().toISOString()
+  }));
 
-    distribucion=
-      leerLocal(userKey("distribucion"),null) ||
-      Object.entries(DEFAULT_CATEGORIAS).map(([id,v])=>({
+  movimientos = movimientos.map(m => ({
+    ...m,
+    fecha: m.fecha || new Date().toISOString(),
+    id: m.id || crypto.randomUUID()
+  }));
+
+  if (!distribucion.length) {
+    distribucion = Object.entries(DEFAULT_CATEGORIAS).map(
+      ([id, v]) => ({
         id,
-        nombre:v[1],
-        icono:v[0],
-        limite:v[2],
-        activo:true
-      }));
-
-    categorias={};
-
-    distribucion
-      .filter(x=>x.activo!==false)
-      .forEach(x=>{
-        categorias[x.id]=[
-          x.icono||"📦",
-          x.nombre,
-          Number(x.limite)||0
-        ];
-      });
-
-  }catch{
-    movimientos=[];
-    gastosFijos=[];
-    distribucion=[];
-    categorias={};
+        nombre: v[1],
+        icono: v[0],
+        limite: v[2],
+        activo: true
+      })
+    );
   }
+
+  guardarDatos();
+}
+
+/* =========================================================
+   CARGAR DATOS DEL USUARIO
+   ========================================================= */
+
+function cargarDatos() {
+  if (!usuario) return;
+
+  movimientos =
+    leerLocal(userKey("movimientos"), []) || [];
+
+  gastosFijos =
+    leerLocal(userKey("fijos"), []) || [];
+
+  distribucion =
+    leerLocal(userKey("distribucion"), null);
+
+  if (!distribucion) {
+    distribucion = Object.entries(DEFAULT_CATEGORIAS).map(
+      ([id, v]) => ({
+        id,
+        nombre: v[1],
+        icono: v[0],
+        limite: v[2],
+        activo: true
+      })
+    );
+  }
+
+  categorias = {};
+
+  distribucion
+    .filter(x => x.activo !== false)
+    .forEach(x => {
+      categorias[x.id] = [
+        x.icono || "📦",
+        x.nombre,
+        Number(x.limite) || 0
+      ];
+    });
 
   migrarEstructuras();
 }
 
-function migrarEstructuras(){
-  gastosFijos=gastosFijos.map(g=>({
-    ...g,
-    activo:g.activo!==false,
-    creado:g.creado||new Date().toISOString()
-  }));
+/* =========================================================
+   PANELES
+   ========================================================= */
 
-  movimientos=movimientos.map(m=>({
-    ...m,
-    fecha:m.fecha||new Date().toISOString(),
-    id:m.id||crypto.randomUUID()
-  }));
-}
-
-function guardarDatos(){
-  if(!usuario)return;
-
-  escribirLocal(
-    userKey("movimientos"),
-    movimientos
-  );
-
-  escribirLocal(
-    userKey("fijos"),
-    gastosFijos
-  );
-
-  escribirLocal(
-    userKey("distribucion"),
-    distribucion
-  );
-}
-
-function migrarDatosAntiguos(){
-  const legacy=localStorage.getItem("kf_movimientos");
-
-  if(
-    legacy &&
-    !localStorage.getItem(userKey("movimientos"))
-  ){
-    try{
-      localStorage.setItem(
-        userKey("movimientos"),
-        legacy
-      );
-
-      localStorage.removeItem("kf_movimientos");
-    }catch{}
-  }
-}
-
-function cerrarPaneles(){
+function cerrarPaneles() {
   document
     .querySelectorAll(".formulario-panel")
-    .forEach(x=>x.style.display="none");
-
-  ["formularioEdicion","modalDistribucion"]
-    .forEach(id=>{
-      const el=$(id);
-      if(el)el.style.display="none";
+    .forEach(x => {
+      x.style.display = "none";
     });
 
-  const fijo=$("formGastoFijo");
-  if(fijo)fijo.style.display="none";
+  [
+    "formularioEdicion",
+    "modalDistribucion"
+  ].forEach(id => {
+    const el = $(id);
+    if (el) el.style.display = "none";
+  });
 
-  try{
+  const fijo = $("formGastoFijo");
+  if (fijo) fijo.style.display = "none";
+
+  try {
     $("formGasto").reset();
     $("formIngreso").reset();
     $("formEdicion").reset();
-  }catch{}
+  } catch {}
 
-  try{
-    $("tipoSalida").value="gasto";
+  try {
+    $("tipoSalida").value = "gasto";
     $("tipoSalida").dispatchEvent(
       new Event("change")
     );
-  }catch{}
+  } catch {}
 }
 
-function mostrarApp(){
-  migrarDatosAntiguos();
+/* =========================================================
+   MOSTRAR APP
+   ========================================================= */
+
+function mostrarApp() {
   cargarDatos();
 
-  $("pantallaAuth").style.display="none";
-  $("app").style.display="block";
+  $("pantallaAuth").style.display = "none";
+  $("app").style.display = "block";
 
-  $("usuarioActual").textContent=
+  $("usuarioActual").textContent =
     `Cuenta: ${usuario.nombre} · ${usuario.correo}`;
 
   cerrarPaneles();
@@ -209,289 +250,328 @@ function mostrarApp(){
   render();
 }
 
-function cerrarSesion(){
+function cerrarSesion() {
   guardarDatos();
 
-  try{
-    localStorage.removeItem(SESSION_KEY);
-  }catch{}
+  localStorage.removeItem(SESSION_KEY);
 
-  usuario=null;
-  movimientos=[];
-  gastosFijos=[];
-  categorias={};
-  distribucion=[];
+  usuario = null;
+  movimientos = [];
+  gastosFijos = [];
+  categorias = {};
+  distribucion = [];
 
   cerrarPaneles();
 
-  $("app").style.display="none";
-  $("pantallaAuth").style.display="flex";
+  $("app").style.display = "none";
+  $("pantallaAuth").style.display = "flex";
 
   $("formLogin").reset();
-  $("loginMensaje").textContent="";
+  $("loginMensaje").textContent = "";
 
   $("tabLogin").click();
 }
 
-function mensaje(id,texto,error=false){
-  const el=$(id);
+/* =========================================================
+   MENSAJES AUTH
+   ========================================================= */
 
-  el.textContent=texto;
-  el.className=
-    "auth-mensaje"+
-    (error?" error":"");
+function mensaje(id, texto, error = false) {
+  const el = $(id);
+
+  el.textContent = texto;
+  el.className =
+    "auth-mensaje" +
+    (error ? " error" : "");
 }
 
-$("tabLogin").onclick=()=>{
+/* =========================================================
+   TABS LOGIN / REGISTRO
+   ========================================================= */
+
+$("tabLogin").onclick = () => {
   $("tabLogin").classList.add("activo");
   $("tabRegistro").classList.remove("activo");
-  $("formLogin").style.display="block";
-  $("formRegistro").style.display="none";
+
+  $("formLogin").style.display = "block";
+  $("formRegistro").style.display = "none";
 };
 
-$("tabRegistro").onclick=()=>{
+$("tabRegistro").onclick = () => {
   $("tabRegistro").classList.add("activo");
   $("tabLogin").classList.remove("activo");
-  $("formRegistro").style.display="block";
-  $("formLogin").style.display="none";
+
+  $("formRegistro").style.display = "block";
+  $("formLogin").style.display = "none";
 };
 
-$("formRegistro").onsubmit=async e=>{
+/* =========================================================
+   REGISTRO
+   ========================================================= */
+
+$("formRegistro").onsubmit = async e => {
   e.preventDefault();
 
-  const nombre=
+  const nombre =
     $("registroNombre").value.trim();
 
-  const correo=
+  const correo =
     $("registroCorreo").value
       .trim()
       .toLowerCase();
 
-  const p1=
+  const p1 =
     $("registroPassword").value;
 
-  const p2=
+  const p2 =
     $("registroPassword2").value;
 
-  if(p1!==p2)
+  if (p1 !== p2) {
     return mensaje(
       "registroMensaje",
       "Las contraseñas no coinciden.",
       true
     );
+  }
 
-  if(p1.length<6)
+  if (p1.length < 6) {
     return mensaje(
       "registroMensaje",
       "La contraseña debe tener al menos 6 caracteres.",
       true
     );
+  }
 
-  const lista=usuarios();
+  const lista = usuarios();
 
-  if(lista.some(u=>u.correo===correo))
+  if (lista.some(u => u.correo === correo)) {
     return mensaje(
       "registroMensaje",
       "Ese correo ya está registrado.",
       true
     );
+  }
 
-  const nuevo={
-    id:crypto.randomUUID(),
+  const nuevo = {
+    id: crypto.randomUUID(),
     nombre,
     correo,
-    passwordHash:await hashPassword(p1),
-    creado:new Date().toISOString()
+    passwordHash: await hashPassword(p1),
+    creado: new Date().toISOString()
   };
 
   lista.push(nuevo);
-  guardarUsuarios(lista);
 
-  usuario=nuevo;
-
-  try{
-    localStorage.setItem(
-      SESSION_KEY,
-      nuevo.id
+  if (!guardarUsuarios(lista)) {
+    return mensaje(
+      "registroMensaje",
+      "No se pudo guardar la cuenta.",
+      true
     );
-  }catch{}
+  }
+
+  usuario = nuevo;
+
+  localStorage.setItem(
+    SESSION_KEY,
+    nuevo.id
+  );
 
   mostrarApp();
 };
 
-$("formLogin").onsubmit=async e=>{
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+$("formLogin").onsubmit = async e => {
   e.preventDefault();
 
-  const correo=
+  const correo =
     $("loginCorreo").value
       .trim()
       .toLowerCase();
 
-  const hash=
+  const hash =
     await hashPassword(
       $("loginPassword").value
     );
 
-  const u=
+  const u =
     usuarios().find(
-      x=>x.correo===correo &&
-         x.passwordHash===hash
+      x =>
+        x.correo === correo &&
+        x.passwordHash === hash
     );
 
-  if(!u)
+  if (!u) {
     return mensaje(
       "loginMensaje",
       "Correo o contraseña incorrectos.",
       true
     );
+  }
 
-  usuario=u;
+  usuario = u;
 
-  try{
-    localStorage.setItem(
-      SESSION_KEY,
-      u.id
-    );
-  }catch{}
+  localStorage.setItem(
+    SESSION_KEY,
+    u.id
+  );
 
   mostrarApp();
 };
 
-$("botonCerrarSesion").onclick=cerrarSesion;
+$("botonCerrarSesion").onclick =
+  cerrarSesion;
 
-function obtenerTotales(){
-  const ing=
+/* =========================================================
+   TOTALES
+   ========================================================= */
+
+function obtenerTotales() {
+  const ing =
     movimientos
-      .filter(m=>m.tipo==="ingreso")
+      .filter(m => m.tipo === "ingreso")
       .reduce(
-        (s,m)=>s+Number(m.monto),
+        (s, m) => s + Number(m.monto),
         0
       );
 
-  const gas=
+  const gas =
     movimientos
-      .filter(m=>m.tipo==="gasto")
+      .filter(m => m.tipo === "gasto")
       .reduce(
-        (s,m)=>s+Number(m.monto),
+        (s, m) => s + Number(m.monto),
         0
       );
 
-  const aportes=
+  const aportes =
     movimientos
-      .filter(m=>m.tipo==="ahorro")
+      .filter(m => m.tipo === "ahorro")
       .reduce(
-        (s,m)=>s+Number(m.monto),
+        (s, m) => s + Number(m.monto),
         0
       );
 
-  const retiros=
+  const retiros =
     movimientos
-      .filter(m=>m.tipo==="retiro_ahorro")
+      .filter(m => m.tipo === "retiro_ahorro")
       .reduce(
-        (s,m)=>s+Number(m.monto),
+        (s, m) => s + Number(m.monto),
         0
       );
 
   return {
     ing,
     gas,
-    ahorro:aportes-retiros,
-    disponible:ing-gas
+    ahorro: aportes - retiros,
+    disponible: ing - gas
   };
 }
 
-function renderResumen(){
+/* =========================================================
+   RESUMEN
+   ========================================================= */
+
+function renderResumen() {
   const {
     ing,
     gas,
     ahorro,
     disponible
-  }=obtenerTotales();
+  } = obtenerTotales();
 
-  $("totalIngresos").textContent=
+  $("totalIngresos").textContent =
     money(ing);
 
-  $("totalGastos").textContent=
+  $("totalGastos").textContent =
     money(gas);
 
-  $("totalBalance").textContent=
+  $("totalBalance").textContent =
     money(disponible);
 
-  $("totalAhorro").textContent=
+  $("totalAhorro").textContent =
     money(ahorro);
 
-  $("totalBalance").style.color=
-    disponible<0
-      ?"var(--rojo)"
-      :"var(--principal)";
+  $("totalBalance").style.color =
+    disponible < 0
+      ? "var(--rojo)"
+      : "var(--principal)";
 
-  $("balanceIngresos").textContent=
+  $("balanceIngresos").textContent =
     money(ing);
 
-  $("balanceGastos").textContent=
+  $("balanceGastos").textContent =
     money(gas);
 
-  $("balanceAhorro").textContent=
+  $("balanceAhorro").textContent =
     money(ahorro);
 
-  $("balanceDisponible").textContent=
+  $("balanceDisponible").textContent =
     money(disponible);
 
-  $("balanceDisponible").style.color=
-    disponible<0
-      ?"var(--rojo)"
-      :"var(--principal)";
+  $("balanceDisponible").style.color =
+    disponible < 0
+      ? "var(--rojo)"
+      : "var(--principal)";
 }
 
-function renderCategorias(){
-  const grid=$("gridCategorias");
+/* =========================================================
+   CATEGORÍAS
+   ========================================================= */
 
-  grid.innerHTML="";
+function renderCategorias() {
+  const grid = $("gridCategorias");
+
+  grid.innerHTML = "";
 
   distribucion
-    .filter(x=>x.activo!==false)
-    .forEach(c=>{
-      const gastos=
+    .filter(x => x.activo !== false)
+    .forEach(c => {
+      const gastos =
         movimientos
           .filter(
-            m=>
-              m.tipo==="gasto" &&
-              m.categoria===c.id
+            m =>
+              m.tipo === "gasto" &&
+              m.categoria === c.id
           )
           .reduce(
-            (s,m)=>s+Number(m.monto),
+            (s, m) =>
+              s + Number(m.monto),
             0
           );
 
-      const lim=
-        Number(c.limite)||0;
+      const lim =
+        Number(c.limite) || 0;
 
-      const pct=
+      const pct =
         lim
-          ?Math.min(
-            gastos/lim*100,
-            100
-          )
-          :0;
+          ? Math.min(
+              gastos / lim * 100,
+              100
+            )
+          : 0;
 
-      const ms=
+      const ms =
         movimientos
           .filter(
-            m=>
-              m.tipo==="gasto" &&
-              m.categoria===c.id
+            m =>
+              m.tipo === "gasto" &&
+              m.categoria === c.id
           )
           .slice(-3)
           .reverse();
 
-      const div=
+      const div =
         document.createElement("article");
 
-      div.className="categoria-card";
+      div.className =
+        "categoria-card";
 
-      div.innerHTML=`
+      div.innerHTML = `
         <div class="categoria-icono">
-          ${escapeHtml(c.icono||"📦")}
+          ${escapeHtml(c.icono || "📦")}
         </div>
 
         <div class="categoria-info">
@@ -513,11 +593,11 @@ function renderCategorias(){
         </small>
 
         <div class="movimientos">
-          ${ms.map(m=>`
+          ${ms.map(m => `
             <div class="movimiento">
               <span>
                 ${escapeHtml(
-                  m.descripcion||c.nombre
+                  m.descripcion || c.nombre
                 )}
               </span>
 
@@ -533,85 +613,98 @@ function renderCategorias(){
     });
 }
 
+/* =========================================================
+   GASTOS FIJOS
+   ========================================================= */
+
+function daysInMonth(y, m) {
+  return new Date(
+    y,
+    m + 1,
+    0
+  ).getDate();
+}
+
 function getFixedProgress(
   g,
-  refDate=new Date()
-){
-  const y=refDate.getFullYear();
-  const m=refDate.getMonth();
+  refDate = new Date()
+) {
+  const y = refDate.getFullYear();
+  const m = refDate.getMonth();
 
-  const pagos=
+  const pagos =
     movimientos
       .filter(
-        x=>
-          x.tipo==="gasto" &&
-          x.origenFijo===g.id
+        x =>
+          x.tipo === "gasto" &&
+          x.origenFijo === g.id
       )
-      .filter(x=>{
-        const d=new Date(x.fecha);
+      .filter(x => {
+        const d = new Date(x.fecha);
 
-        return(
-          d.getFullYear()===y &&
-          d.getMonth()===m
+        return (
+          d.getFullYear() === y &&
+          d.getMonth() === m
         );
       });
 
-  const pagado=
+  const pagado =
     pagos.reduce(
-      (s,x)=>s+Number(x.monto),
+      (s, x) =>
+        s + Number(x.monto),
       0
     );
 
-  const objetivo=
-    Number(g.monto)||0;
+  const objetivo =
+    Number(g.monto) || 0;
 
-  const pendiente=
+  const pendiente =
     Math.max(
-      objetivo-pagado,
+      objetivo - pagado,
       0
     );
 
-  const pct=
+  const pct =
     objetivo
-      ?Math.min(
-        pagado/objetivo*100,
-        100
-      )
-      :0;
+      ? Math.min(
+          pagado / objetivo * 100,
+          100
+        )
+      : 0;
 
-  const venc=
+  const venc =
     new Date(
       y,
       m,
       Math.min(
-        Number(g.dia)||1,
-        daysInMonth(y,m)
+        Number(g.dia) || 1,
+        daysInMonth(y, m)
       ),
       23,
       59,
       59
     );
 
-  const completa=
-    pagado>=objetivo &&
-    objetivo>0;
+  const completa =
+    pagado >= objetivo &&
+    objetivo > 0;
 
-  let estado=
+  let estado =
     completa
-      ?"pagado"
-      :(new Date()>venc
-        ?"vencido"
-        :"pendiente");
+      ? "pagado"
+      : new Date() > venc
+        ? "vencido"
+        : "pendiente";
 
-  if(
-    pagado>0 &&
+  if (
+    pagado > 0 &&
     !completa &&
-    new Date()>venc
-  ){
-    estado="parcial-atrasado";
+    new Date() > venc
+  ) {
+    estado = "parcial-atrasado";
   }
 
-  return{
+  return {
     pagos,
     pagado,
     objetivo,
@@ -622,54 +715,49 @@ function getFixedProgress(
   };
 }
 
-function daysInMonth(y,m){
-  return new Date(
-    y,
-    m+1,
-    0
-  ).getDate();
-}
-
 function estadoFechaPago(
   fecha,
   venc
-){
-  const p=
+) {
+  const p =
     new Date(
-      fecha+"T12:00:00"
+      fecha + "T12:00:00"
     );
 
-  const v=
+  const v =
     new Date(venc);
 
-  const diff=
+  const diff =
     Math.round(
-      (p-v)/86400000
+      (p - v) / 86400000
     );
 
-  if(Math.abs(diff)<=10){
-    if(diff<0)
-      return `Pagado ${Math.abs(diff)} día${Math.abs(diff)!==1?"s":""} antes`;
+  if (Math.abs(diff) <= 10) {
+    if (diff < 0) {
+      return `Pagado ${Math.abs(diff)} día${Math.abs(diff) !== 1 ? "s" : ""} antes`;
+    }
 
-    if(diff===0)
+    if (diff === 0) {
       return "Pagado a tiempo";
+    }
 
-    return `Pagado ${diff} día${diff!==1?"s":""} tarde`;
+    return `Pagado ${diff} día${diff !== 1 ? "s" : ""} tarde`;
   }
 
   return fechaTexto(fecha);
 }
 
-function renderGastosFijos(){
-  const box=$("listaGastosFijos");
+function renderGastosFijos() {
+  const box =
+    $("listaGastosFijos");
 
-  const activos=
+  const activos =
     gastosFijos.filter(
-      g=>g.activo!==false
+      g => g.activo !== false
     );
 
-  if(!activos.length){
-    box.innerHTML=`
+  if (!activos.length) {
+    box.innerHTML = `
       <div class="historial-vacio">
         <span>📌</span>
         No hay gastos fijos registrados.
@@ -678,48 +766,53 @@ function renderGastosFijos(){
     return;
   }
 
-  box.innerHTML=
-    activos.map(g=>{
-      const p=getFixedProgress(g);
+  box.innerHTML =
+    activos.map(g => {
+      const p =
+        getFixedProgress(g);
 
-      const cl=
-        p.estado==="pagado"
-          ?"pagado"
-          :(p.estado.includes("atrasado")||
-            p.estado==="vencido"
-              ?"atrasado"
-              :"");
-
-      const pagosInfo=
-        p.pagos.length
-          ?p.pagos
-            .slice()
-            .sort(
-              (a,b)=>
-                new Date(b.fecha)-
-                new Date(a.fecha)
+      const cl =
+        p.estado === "pagado"
+          ? "pagado"
+          : (
+              p.estado.includes("atrasado") ||
+              p.estado === "vencido"
             )
-            .slice(0,3)
-            .map(
-              x=>`
-                <div class="fijo-pago">
-                  ${fechaTexto(x.fecha)}
-                  · ${money(x.monto)}
-                  · ${estadoFechaPago(
+              ? "atrasado"
+              : "";
+
+      const pagosInfo =
+        p.pagos.length
+          ? p.pagos
+              .slice()
+              .sort(
+                (a, b) =>
+                  new Date(b.fecha) -
+                  new Date(a.fecha)
+              )
+              .slice(0, 3)
+              .map(
+                x => `
+                  <div class="fijo-pago">
+                    ${fechaTexto(x.fecha)}
+                    · ${money(x.monto)}
+                    · ${estadoFechaPago(
                       x.fecha,
                       p.venc
                     )}
-                </div>
-              `
-            )
-            .join("")
-          :
-            `<div class="fijo-pago">
-              Sin pagos este mes
-            </div>`;
+                  </div>
+                `
+              )
+              .join("")
+          : `
+              <div class="fijo-pago">
+                Sin pagos este mes
+              </div>
+            `;
 
-      return`
+      return `
         <div class="fijo-item ${cl}">
+
           <div class="fijo-info">
 
             <strong>
@@ -729,9 +822,11 @@ function renderGastosFijos(){
             <small>
               Vence día ${g.dia}
               · ${money(g.monto)}
-              · ${p.pagado>=p.objetivo
-                ?"Pagado"
-                :"Pendiente"}
+              · ${
+                p.pagado >= p.objetivo
+                  ? "Pagado"
+                  : "Pendiente"
+              }
             </small>
 
             <div class="barra">
@@ -779,60 +874,69 @@ function renderGastosFijos(){
             </button>
 
           </div>
+
         </div>
       `;
     }).join("");
 }
 
-function actualizarSelects(){
-  const cat=$("categoria");
+/* =========================================================
+   SELECTS
+   ========================================================= */
 
-  cat.innerHTML=
-    '<option value="">Selecciona una categoría</option>'+
+function actualizarSelects() {
+  const cat =
+    $("categoria");
+
+  cat.innerHTML =
+    '<option value="">Selecciona una categoría</option>' +
     distribucion
-      .filter(x=>x.activo!==false)
+      .filter(x => x.activo !== false)
       .map(
-        c=>`
+        c => `
           <option value="${c.id}">
-            ${escapeHtml(c.icono||"📦")}
+            ${escapeHtml(c.icono || "📦")}
             ${escapeHtml(c.nombre)}
           </option>
         `
       )
       .join("");
 
-  const filtro=$("filtroCategoria");
+  const filtro =
+    $("filtroCategoria");
 
-  filtro.innerHTML=
-    '<option value="todas">Todas las categorías</option>'+
+  filtro.innerHTML =
+    '<option value="todas">Todas las categorías</option>' +
     distribucion
-      .filter(x=>x.activo!==false)
+      .filter(x => x.activo !== false)
       .map(
-        c=>`
+        c => `
           <option value="${c.id}">
-            ${escapeHtml(c.icono||"📦")}
+            ${escapeHtml(c.icono || "📦")}
             ${escapeHtml(c.nombre)}
           </option>
         `
       )
-      .join("")+
-      `
-        <option value="ahorro">
-          💎 Aporte a ahorro
-        </option>
-        <option value="retiro_ahorro">
-          ↩️ Retiro de ahorro
-        </option>
-      `;
+      .join("") +
+    `
+      <option value="ahorro">
+        💎 Aporte a ahorro
+      </option>
 
-  const fijo=$("gastoFijoSeleccion");
+      <option value="retiro_ahorro">
+        ↩️ Retiro de ahorro
+      </option>
+    `;
 
-  fijo.innerHTML=
-    '<option value="">Selecciona un gasto fijo</option>'+
+  const fijo =
+    $("gastoFijoSeleccion");
+
+  fijo.innerHTML =
+    '<option value="">Selecciona un gasto fijo</option>' +
     gastosFijos
-      .filter(x=>x.activo!==false)
+      .filter(x => x.activo !== false)
       .map(
-        g=>`
+        g => `
           <option value="${g.id}">
             ${escapeHtml(g.nombre)}
             — ${money(g.monto)}
@@ -843,216 +947,219 @@ function actualizarSelects(){
 }
 
 /* =========================================================
-   ÚLTIMOS 3 MOVIMIENTOS
+   MOVIMIENTOS RECIENTES
    ========================================================= */
 
-function renderMovimientosRecientes(){
-  const recientes=
+function renderMovimientosRecientes() {
+  const recientes =
     $("movimientosRecientes");
 
-  if(!recientes)return;
+  if (!recientes) return;
 
-  const ultimos=
+  const ultimos =
     movimientos
       .slice()
       .sort(
-        (a,b)=>
-          new Date(b.fecha)-
+        (a, b) =>
+          new Date(b.fecha) -
           new Date(a.fecha)
       )
-      .slice(0,3);
+      .slice(0, 3);
 
-  recientes.innerHTML=
+  recientes.innerHTML =
     ultimos.length
-      ?ultimos
-        .map(renderMovimiento)
-        .join("")
-      :
-        `
-          <div class="historial-vacio">
-            <span>📋</span>
-            No hay movimientos todavía.
-          </div>
-        `;
+      ? ultimos
+          .map(renderMovimiento)
+          .join("")
+      : `
+        <div class="historial-vacio">
+          <span>📋</span>
+          No hay movimientos todavía.
+        </div>
+      `;
 
-  const contador=
+  const contador =
     $("contadorMovimientosRecientes");
 
-  if(contador){
-    contador.textContent=
-      `${ultimos.length} movimiento${ultimos.length===1?"":"s"}`;
+  if (contador) {
+    contador.textContent =
+      `${ultimos.length} movimiento${ultimos.length === 1 ? "" : "s"}`;
   }
 }
 
 /* =========================================================
-   HISTORIAL COMPLETO
+   HISTORIAL
    ========================================================= */
 
-function renderHistorial(completo=false){
-  const cat=
+function renderHistorial(completo = false) {
+  const cat =
     $("filtroCategoria").value;
 
-  const tipo=
+  const tipo =
     $("filtroTipo").value;
 
-  const periodo=
+  const periodo =
     $("filtroPeriodo").value;
 
-  const desde=
+  const desde =
     $("filtroDesde").value;
 
-  const hasta=
+  const hasta =
     $("filtroHasta").value;
 
-  let arr=
+  let arr =
     movimientos.slice();
 
-  if(cat!=="todas"){
-    arr=
+  if (cat !== "todas") {
+    arr =
       arr.filter(
-        m=>
-          m.categoria===cat ||
-          m.tipo===cat
+        m =>
+          m.categoria === cat ||
+          m.tipo === cat
       );
   }
 
-  if(tipo!=="todos"){
-    arr=
+  if (tipo !== "todos") {
+    arr =
       arr.filter(
-        m=>m.tipo===tipo
+        m => m.tipo === tipo
       );
   }
 
-  const now=new Date();
+  const now =
+    new Date();
 
-  if(periodo==="semana"){
-    arr=
-      arr.filter(m=>{
-        const d=
+  if (periodo === "semana") {
+    arr =
+      arr.filter(m => {
+        const d =
           new Date(m.fecha);
 
-        const diff=
-          (now-d)/86400000;
+        const diff =
+          (now - d) / 86400000;
 
-        return(
-          diff>=0 &&
-          diff<7
+        return (
+          diff >= 0 &&
+          diff < 7
         );
       });
   }
 
-  if(periodo==="mes"){
-    arr=
-      arr.filter(m=>{
-        const d=
+  if (periodo === "mes") {
+    arr =
+      arr.filter(m => {
+        const d =
           new Date(m.fecha);
 
-        return(
-          d.getMonth()===now.getMonth() &&
-          d.getFullYear()===now.getFullYear()
+        return (
+          d.getMonth() ===
+            now.getMonth() &&
+          d.getFullYear() ===
+            now.getFullYear()
         );
       });
   }
 
-  if(periodo==="dia"){
-    arr=
+  if (periodo === "dia") {
+    arr =
       arr.filter(
-        m=>
-          m.fecha.slice(0,10)===hoyISO()
+        m =>
+          m.fecha.slice(0, 10) ===
+          hoyISO()
       );
   }
 
-  if(desde){
-    arr=
+  if (desde) {
+    arr =
       arr.filter(
-        m=>
-          m.fecha.slice(0,10)>=desde
+        m =>
+          m.fecha.slice(0, 10) >=
+          desde
       );
   }
 
-  if(hasta){
-    arr=
+  if (hasta) {
+    arr =
       arr.filter(
-        m=>
-          m.fecha.slice(0,10)<=hasta
+        m =>
+          m.fecha.slice(0, 10) <=
+          hasta
       );
   }
 
   arr.sort(
-    (a,b)=>
-      new Date(b.fecha)-
+    (a, b) =>
+      new Date(b.fecha) -
       new Date(a.fecha)
   );
 
-  const listaCompleta=
-    arr;
+  const listaCompleta =
+    arr.slice();
 
-  if(!completo){
-    arr=
-      arr.slice(0,3);
+  if (!completo) {
+    arr = arr.slice(0, 3);
   }
 
-  const box=
+  const box =
     $("historialMovimientos");
 
-  box.innerHTML=
+  box.innerHTML =
     arr.length
-      ?arr
-        .map(renderMovimiento)
-        .join("")
-      :
-        `
-          <div class="historial-vacio">
-            <span>📋</span>
-            No hay movimientos con estos filtros.
-          </div>
-        `;
+      ? arr
+          .map(renderMovimiento)
+          .join("")
+      : `
+        <div class="historial-vacio">
+          <span>📋</span>
+          No hay movimientos con estos filtros.
+        </div>
+      `;
 
-  $("contadorHistorial").textContent=
-    `${listaCompleta.length} movimiento${listaCompleta.length===1?"":"s"}`;
+  $("contadorHistorial").textContent =
+    `${listaCompleta.length} movimiento${listaCompleta.length === 1 ? "" : "s"}`;
 }
 
-function renderMovimiento(m){
-  const esIngreso=
-    m.tipo==="ingreso";
+function renderMovimiento(m) {
+  const esIngreso =
+    m.tipo === "ingreso";
 
-  const esAhorro=
-    m.tipo==="ahorro";
+  const esAhorro =
+    m.tipo === "ahorro";
 
-  const esRetiro=
-    m.tipo==="retiro_ahorro";
+  const esRetiro =
+    m.tipo === "retiro_ahorro";
 
-  const cat=
+  const cat =
     distribucion.find(
-      c=>c.id===m.categoria
+      c => c.id === m.categoria
     );
 
-  const icon=
+  const icon =
     esIngreso
-      ?"💰"
-      :esAhorro
-        ?"💎"
-        :esRetiro
-          ?"↩️"
-          :cat?.icono||"💸";
+      ? "💰"
+      : esAhorro
+        ? "💎"
+        : esRetiro
+          ? "↩️"
+          : cat?.icono || "💸";
 
-  const nombre=
+  const nombre =
     esIngreso
-      ?"Ingreso"
-      :esAhorro
-        ?"Aporte a ahorro"
-        :esRetiro
-          ?"Retiro de ahorro"
-          :cat?.nombre||"Gasto";
+      ? "Ingreso"
+      : esAhorro
+        ? "Aporte a ahorro"
+        : esRetiro
+          ? "Retiro de ahorro"
+          : cat?.nombre || "Gasto";
 
-  const signo=
+  const signo =
     esIngreso
-      ?"+"
-      :esRetiro
-        ?"↩"
-        :"-";
+      ? "+"
+      : esRetiro
+        ? "↩"
+        : "-";
 
-  return`
+  return `
     <div class="movimiento-historial">
 
       <div class="movimiento-principal">
@@ -1062,9 +1169,10 @@ function renderMovimiento(m){
         </div>
 
         <div>
+
           <strong>
             ${escapeHtml(
-              m.descripcion||nombre
+              m.descripcion || nombre
             )}
           </strong>
 
@@ -1072,10 +1180,13 @@ function renderMovimiento(m){
             ${escapeHtml(nombre)}
             ·
             ${fechaTexto(m.fecha)}
-            ${m.origenFijo
-              ?" · Gasto fijo"
-              :""}
+            ${
+              m.origenFijo
+                ? " · Gasto fijo"
+                : ""
+            }
           </small>
+
         </div>
 
       </div>
@@ -1085,10 +1196,10 @@ function renderMovimiento(m){
         <strong
           class="${
             esIngreso
-              ?"ingreso"
-              :esRetiro
-                ?"retiro"
-                :"gasto"
+              ? "ingreso"
+              : esRetiro
+                ? "retiro"
+                : "gasto"
           }"
         >
           ${signo}${money(m.monto)}
@@ -1117,64 +1228,71 @@ function renderMovimiento(m){
 }
 
 /* =========================================================
-   RENDER PRINCIPAL
+   RENDER GENERAL
    ========================================================= */
 
-function render(){
+function render() {
   actualizarSelects();
-
   renderResumen();
-
   renderCategorias();
-
   renderMovimientosRecientes();
-
   renderHistorial();
-
   renderGastosFijos();
 
+  /* GUARDADO DE SEGURIDAD */
   guardarDatos();
 }
 
-function mostrar(id){
+/* =========================================================
+   FORMULARIOS
+   ========================================================= */
+
+function mostrar(id) {
   document
     .querySelectorAll(".formulario-panel")
     .forEach(
-      x=>x.style.display="none"
+      x => x.style.display = "none"
     );
 
-  $(id).style.display="block";
+  $(id).style.display = "block";
 
   $(id).scrollIntoView({
-    behavior:"smooth",
-    block:"start"
+    behavior: "smooth",
+    block: "start"
   });
 }
 
-function cerrarFormGasto(){
-  $("formularioGasto").style.display="none";
+function cerrarFormGasto() {
+  $("formularioGasto").style.display =
+    "none";
 
   $("formGasto").reset();
 
-  $("gastoFijoSeleccion").value="";
+  $("gastoFijoSeleccion").value = "";
 
-  $("tipoSalida").value="gasto";
+  $("tipoSalida").value = "gasto";
 
   $("tipoSalida").dispatchEvent(
     new Event("change")
   );
 }
 
-function activarTarjeta(id,accion){
-  const el=$(id);
+/* =========================================================
+   TARJETAS
+   ========================================================= */
 
-  el.onclick=accion;
+function activarTarjeta(id, accion) {
+  const el = $(id);
 
-  el.onkeydown=e=>{
-    if(
-      e.key==="Enter" ||
-      e.key===" "
-    ){
+  if (!el) return;
+
+  el.onclick = accion;
+
+  el.onkeydown = e => {
+    if (
+      e.key === "Enter" ||
+      e.key === " "
+    ) {
       e.preventDefault();
       accion();
     }
@@ -1183,119 +1301,78 @@ function activarTarjeta(id,accion){
 
 activarTarjeta(
   "tarjetaIngresos",
-  ()=>mostrar("formularioIngreso")
+  () =>
+    mostrar(
+      "formularioIngreso"
+    )
 );
 
 activarTarjeta(
   "tarjetaGastos",
-  ()=>{
-    $("tipoSalida").value="gasto";
+  () => {
+    $("tipoSalida").value =
+      "gasto";
 
     $("tipoSalida").dispatchEvent(
       new Event("change")
     );
 
-    mostrar("formularioGasto");
+    mostrar(
+      "formularioGasto"
+    );
   }
 );
 
 activarTarjeta(
   "tarjetaAhorro",
-  ()=>{
-    $("tipoSalida").value="ahorro";
+  () => {
+    $("tipoSalida").value =
+      "ahorro";
 
     $("tipoSalida").dispatchEvent(
       new Event("change")
     );
 
-    mostrar("formularioGasto");
+    mostrar(
+      "formularioGasto"
+    );
   }
 );
 
-$("cerrarFormularioIngreso").onclick=
-  ()=>
-    $("formularioIngreso").style.display="none";
+/* =========================================================
+   INGRESOS
+   ========================================================= */
 
-$("cerrarFormularioGasto").onclick=
-  cerrarFormGasto;
+$("cerrarFormularioIngreso").onclick =
+  () =>
+    $("formularioIngreso")
+      .style.display = "none";
 
-$("tipoSalida").onchange=()=>{
-  const v=
-    $("tipoSalida").value;
-
-  const normal=
-    v==="gasto";
-
-  const ahorro=
-    v==="ahorro";
-
-  const retiro=
-    v==="retiro_ahorro";
-
-  $("camposGasto").style.display=
-    normal
-      ?"block"
-      :"none";
-
-  $("campoTipoGasto").style.display=
-    normal
-      ?"block"
-      :"none";
-
-  $("campoGastoFijo").style.display=
-    normal
-      ?"block"
-      :"none";
-
-  $("campoRetiroAhorro").style.display=
-    retiro
-      ?"block"
-      :"none";
-
-  $("descripcion").placeholder=
-    ahorro
-      ?"Ej. Fondo de emergencia"
-      :retiro
-        ?"Ej. Proyecto o emergencia"
-        :"¿En qué gastaste?";
-
-  $("guardarSalida").textContent=
-    ahorro
-      ?"Guardar aporte a ahorro"
-      :retiro
-        ?"Registrar retiro de ahorro"
-        :"Guardar gasto";
-
-  if(ahorro||retiro){
-    $("categoria").value="";
-    $("gastoFijoSeleccion").value="";
-  }
-};
-
-$("formIngreso").onsubmit=e=>{
+$("formIngreso").onsubmit = e => {
   e.preventDefault();
 
-  const tipo=
+  const tipo =
     $("tipoIngreso").value;
 
-  const monto=
+  const monto =
     Number(
       $("montoIngreso").value
     );
 
-  const fecha=
-    $("fechaIngreso").value||
+  const fecha =
+    $("fechaIngreso").value ||
     hoyISO();
 
-  if(!tipo||monto<=0)
+  if (!tipo || monto <= 0) {
     return alert(
       "Completa el tipo, monto y fecha."
     );
+  }
 
   movimientos.push({
-    id:crypto.randomUUID(),
-    tipo:"ingreso",
-    categoria:tipo,
+    id: crypto.randomUUID(),
+    tipo: "ingreso",
+    categoria: tipo,
     monto,
     descripcion:
       $("descripcionIngreso")
@@ -1304,75 +1381,126 @@ $("formIngreso").onsubmit=e=>{
     fecha
   });
 
+  /* GUARDAR INMEDIATAMENTE */
+  guardarMovimientos();
+
   e.target.reset();
 
   render();
 
   $("formularioIngreso")
-    .style.display="none";
+    .style.display = "none";
 };
 
-$("formGasto").onsubmit=e=>{
-  e.preventDefault();
+/* =========================================================
+   GASTOS / AHORRO
+   ========================================================= */
 
-  const tipo=
+$("cerrarFormularioGasto").onclick =
+  cerrarFormGasto;
+
+$("tipoSalida").onchange = () => {
+  const v =
     $("tipoSalida").value;
 
-  const monto=
+  const normal =
+    v === "gasto";
+
+  const ahorro =
+    v === "ahorro";
+
+  const retiro =
+    v === "retiro_ahorro";
+
+  $("camposGasto").style.display =
+    normal ? "block" : "none";
+
+  $("campoTipoGasto").style.display =
+    normal ? "block" : "none";
+
+  $("campoGastoFijo").style.display =
+    normal ? "block" : "none";
+
+  $("campoRetiroAhorro").style.display =
+    retiro ? "block" : "none";
+
+  $("descripcion").placeholder =
+    ahorro
+      ? "Ej. Fondo de emergencia"
+      : retiro
+        ? "Ej. Proyecto o emergencia"
+        : "¿En qué gastaste?";
+
+  $("guardarSalida").textContent =
+    ahorro
+      ? "Guardar aporte a ahorro"
+      : retiro
+        ? "Registrar retiro de ahorro"
+        : "Guardar gasto";
+
+  if (ahorro || retiro) {
+    $("categoria").value = "";
+    $("gastoFijoSeleccion").value = "";
+  }
+};
+
+$("formGasto").onsubmit = e => {
+  e.preventDefault();
+
+  const tipo =
+    $("tipoSalida").value;
+
+  const monto =
     Number(
       $("monto").value
     );
 
-  const fecha=
-    $("fechaGasto").value||
+  const fecha =
+    $("fechaGasto").value ||
     hoyISO();
 
-  if(monto<=0)
+  if (monto <= 0) {
     return alert(
       "Completa el monto."
     );
+  }
 
-  if(
-    tipo==="gasto" &&
+  if (
+    tipo === "gasto" &&
     !$("categoria").value &&
     !$("gastoFijoSeleccion").value
-  ){
+  ) {
     return alert(
       "Selecciona una categoría."
     );
   }
 
-  if(
-    tipo==="gasto" &&
+  if (
+    tipo === "gasto" &&
     $("gastoFijoSeleccion").value
-  ){
-    const g=
+  ) {
+    const g =
       gastosFijos.find(
-        x=>
-          x.id===
+        x =>
+          x.id ===
           $("gastoFijoSeleccion").value
       );
 
-    if(g)
-      $("descripcion").value=
-        $("descripcion")
-          .value
-          .trim()||
-        g.nombre;
+    const descripcion =
+      $("descripcion")
+        .value
+        .trim() ||
+      g?.nombre ||
+      "Gasto fijo";
 
     movimientos.push({
-      id:crypto.randomUUID(),
-      tipo:"gasto",
+      id: crypto.randomUUID(),
+      tipo: "gasto",
       categoria:
-        $("categoria").value||
+        $("categoria").value ||
         "otros",
       monto,
-      descripcion:
-        $("descripcion")
-          .value
-          .trim()||
-        g?.nombre||
-        "Gasto fijo",
+      descripcion,
       tipoGasto:
         $("tipoGasto").value,
       fecha,
@@ -1380,11 +1508,13 @@ $("formGasto").onsubmit=e=>{
         g?.id
     });
 
-  }else if(tipo==="gasto"){
+  } else if (
+    tipo === "gasto"
+  ) {
 
     movimientos.push({
-      id:crypto.randomUUID(),
-      tipo:"gasto",
+      id: crypto.randomUUID(),
+      tipo: "gasto",
       categoria:
         $("categoria").value,
       monto,
@@ -1397,12 +1527,14 @@ $("formGasto").onsubmit=e=>{
       fecha
     });
 
-  }else if(tipo==="ahorro"){
+  } else if (
+    tipo === "ahorro"
+  ) {
 
     movimientos.push({
-      id:crypto.randomUUID(),
-      tipo:"ahorro",
-      categoria:"ahorro",
+      id: crypto.randomUUID(),
+      tipo: "ahorro",
+      categoria: "ahorro",
       monto,
       descripcion:
         $("descripcion")
@@ -1411,20 +1543,21 @@ $("formGasto").onsubmit=e=>{
       fecha
     });
 
-  }else{
+  } else {
 
-    const saldo=
+    const saldo =
       obtenerTotales().ahorro;
 
-    if(monto>saldo)
+    if (monto > saldo) {
       return alert(
         `No puedes retirar ${money(monto)} porque tu ahorro disponible es ${money(saldo)}.`
       );
+    }
 
     movimientos.push({
-      id:crypto.randomUUID(),
-      tipo:"retiro_ahorro",
-      categoria:"retiro_ahorro",
+      id: crypto.randomUUID(),
+      tipo: "retiro_ahorro",
+      categoria: "retiro_ahorro",
       monto,
       descripcion:
         $("descripcion")
@@ -1433,6 +1566,9 @@ $("formGasto").onsubmit=e=>{
       fecha
     });
   }
+
+  /* GUARDAR ANTES DE CUALQUIER RENDER */
+  guardarMovimientos();
 
   e.target.reset();
 
@@ -1441,297 +1577,317 @@ $("formGasto").onsubmit=e=>{
   render();
 };
 
-window.eliminarMovimiento=id=>{
-  if(
+/* =========================================================
+   EDITAR / ELIMINAR MOVIMIENTOS
+   ========================================================= */
+
+window.eliminarMovimiento = id => {
+  if (
     confirm(
       "¿Eliminar este movimiento?"
     )
-  ){
-    movimientos=
+  ) {
+    movimientos =
       movimientos.filter(
-        m=>m.id!==id
+        m => m.id !== id
       );
 
+    guardarMovimientos();
     render();
   }
 };
 
-window.editarMovimiento=id=>{
-  const m=
+window.editarMovimiento = id => {
+  const m =
     movimientos.find(
-      x=>x.id===id
+      x => x.id === id
     );
 
-  if(!m)return;
+  if (!m) return;
 
-  $("editarId").value=m.id;
-  $("editarTipo").value=m.tipo;
-  $("editarMonto").value=m.monto;
-  $("editarFecha").value=
-    m.fecha.slice(0,10);
+  $("editarId").value = m.id;
+  $("editarTipo").value = m.tipo;
+  $("editarMonto").value = m.monto;
+  $("editarFecha").value =
+    m.fecha.slice(0, 10);
 
-  $("editarDescripcion").value=
-    m.descripcion||"";
+  $("editarDescripcion").value =
+    m.descripcion || "";
 
-  $("editarCategoria").innerHTML=
+  $("editarCategoria").innerHTML =
     distribucion
       .filter(
-        c=>c.activo!==false
+        c => c.activo !== false
       )
       .map(
-        c=>`
+        c => `
           <option value="${c.id}">
             ${escapeHtml(c.icono)}
             ${escapeHtml(c.nombre)}
           </option>
         `
       )
-      .join("")+
-      `
-        <option value="ahorro">
-          💎 Aporte a ahorro
-        </option>
+      .join("") +
+    `
+      <option value="ahorro">
+        💎 Aporte a ahorro
+      </option>
 
-        <option value="retiro_ahorro">
-          ↩️ Retiro de ahorro
-        </option>
-      `;
+      <option value="retiro_ahorro">
+        ↩️ Retiro de ahorro
+      </option>
+    `;
 
-  $("editarCategoria").value=
+  $("editarCategoria").value =
     m.categoria;
 
   $("formularioEdicion")
-    .style.display="block";
+    .style.display = "block";
 
   $("formularioEdicion")
     .scrollIntoView({
-      behavior:"smooth"
+      behavior: "smooth"
     });
 };
 
-$("cancelarEdicion").onclick=
-  ()=>
+$("cancelarEdicion").onclick =
+  () =>
     $("formularioEdicion")
-      .style.display="none";
+      .style.display = "none";
 
-$("formEdicion").onsubmit=e=>{
+$("formEdicion").onsubmit = e => {
   e.preventDefault();
 
-  const m=
+  const m =
     movimientos.find(
-      x=>
-        x.id===
+      x =>
+        x.id ===
         $("editarId").value
     );
 
-  if(!m)return;
+  if (!m) return;
 
-  m.tipo=
+  m.tipo =
     $("editarTipo").value;
 
-  m.monto=
+  m.monto =
     Number(
       $("editarMonto").value
     );
 
-  m.fecha=
-    $("editarFecha").value||
+  m.fecha =
+    $("editarFecha").value ||
     hoyISO();
 
-  m.descripcion=
+  m.descripcion =
     $("editarDescripcion")
       .value
       .trim();
 
-  m.categoria=
+  m.categoria =
     $("editarCategoria").value;
+
+  guardarMovimientos();
 
   render();
 
   $("formularioEdicion")
-    .style.display="none";
+    .style.display = "none";
 };
 
-$("mostrarFormFijo").onclick=()=>{
+/* =========================================================
+   GASTOS FIJOS
+   ========================================================= */
+
+$("mostrarFormFijo").onclick = () => {
   resetFijoForm();
 
   $("formGastoFijo")
-    .style.display="block";
+    .style.display = "block";
 
   $("fijoNombre").focus();
 };
 
-$("cancelarFijo").onclick=()=>{
+$("cancelarFijo").onclick = () => {
   $("formGastoFijo").reset();
-
-  $("fijoId").value="";
+  $("fijoId").value = "";
 
   $("formGastoFijo")
-    .style.display="none";
+    .style.display = "none";
 };
 
-function resetFijoForm(){
+function resetFijoForm() {
   $("formGastoFijo").reset();
-  $("fijoId").value="";
+  $("fijoId").value = "";
 }
 
-window.editarFijo=id=>{
-  const g=
+window.editarFijo = id => {
+  const g =
     gastosFijos.find(
-      x=>x.id===id
+      x => x.id === id
     );
 
-  if(!g)return;
+  if (!g) return;
 
-  $("fijoId").value=g.id;
-  $("fijoNombre").value=g.nombre;
-  $("fijoMonto").value=g.monto;
-  $("fijoDia").value=g.dia;
+  $("fijoId").value = g.id;
+  $("fijoNombre").value = g.nombre;
+  $("fijoMonto").value = g.monto;
+  $("fijoDia").value = g.dia;
 
   $("formGastoFijo")
-    .style.display="block";
+    .style.display = "block";
 
   $("fijoNombre").focus();
 };
 
-$("formGastoFijo").onsubmit=e=>{
+$("formGastoFijo").onsubmit = e => {
   e.preventDefault();
 
-  const id=
+  const id =
     $("fijoId").value;
 
-  const nombre=
+  const nombre =
     $("fijoNombre")
       .value
       .trim();
 
-  const monto=
+  const monto =
     Number(
       $("fijoMonto").value
     );
 
-  const dia=
+  const dia =
     Number(
       $("fijoDia").value
     );
 
-  if(
-    !nombre||
-    monto<=0||
-    dia<1||
-    dia>31
-  ){
+  if (
+    !nombre ||
+    monto <= 0 ||
+    dia < 1 ||
+    dia > 31
+  ) {
     return alert(
       "Completa correctamente el gasto fijo."
     );
   }
 
-  if(id){
-
-    const g=
+  if (id) {
+    const g =
       gastosFijos.find(
-        x=>x.id===id
+        x => x.id === id
       );
 
-    if(g){
-      g.nombre=nombre;
-      g.monto=monto;
-      g.dia=dia;
-      g.activo=true;
+    if (g) {
+      g.nombre = nombre;
+      g.monto = monto;
+      g.dia = dia;
+      g.activo = true;
     }
-
-  }else{
-
+  } else {
     gastosFijos.push({
-      id:crypto.randomUUID(),
+      id: crypto.randomUUID(),
       nombre,
       monto,
       dia,
-      activo:true,
-      creado:new Date().toISOString()
+      activo: true,
+      creado:
+        new Date().toISOString()
     });
   }
+
+  guardarFijos();
 
   resetFijoForm();
 
   $("formGastoFijo")
-    .style.display="none";
+    .style.display = "none";
 
   render();
 };
 
-window.desactivarFijo=id=>{
-  const g=
+window.desactivarFijo = id => {
+  const g =
     gastosFijos.find(
-      x=>x.id===id
+      x => x.id === id
     );
 
-  if(
+  if (
     g &&
     confirm(
       `¿Dejar de usar ${g.nombre} como gasto fijo? Sus pagos históricos se conservarán.`
     )
-  ){
-    g.activo=false;
+  ) {
+    g.activo = false;
+
+    guardarFijos();
     render();
   }
 };
 
-window.abrirPagoFijo=id=>{
-  $("tipoSalida").value="gasto";
+window.abrirPagoFijo = id => {
+  $("tipoSalida").value =
+    "gasto";
 
   $("tipoSalida").dispatchEvent(
     new Event("change")
   );
 
-  $("gastoFijoSeleccion").value=id;
+  $("gastoFijoSeleccion").value =
+    id;
 
-  const g=
+  const g =
     gastosFijos.find(
-      x=>x.id===id
+      x => x.id === id
     );
 
-  if(g){
-    $("categoria").value=
+  if (g) {
+    $("categoria").value =
       distribucion.find(
-        c=>
+        c =>
           c.nombre
             .toLowerCase()
             .includes("vivienda")
-      )?.id||
-      distribucion[0]?.id||
+      )?.id ||
+      distribucion[0]?.id ||
       "otros";
 
-    $("descripcion").value=
+    $("descripcion").value =
       g.nombre;
   }
 
-  mostrar("formularioGasto");
+  mostrar(
+    "formularioGasto"
+  );
 };
 
-$("mostrarDistribucion").onclick=()=>{
+/* =========================================================
+   DISTRIBUCIÓN
+   ========================================================= */
+
+$("mostrarDistribucion").onclick = () => {
   renderEditorDistribucion();
 
   $("modalDistribucion")
-    .style.display="flex";
+    .style.display = "flex";
 };
 
-$("cerrarDistribucion").onclick=
-  ()=>
+$("cerrarDistribucion").onclick =
+  () =>
     $("modalDistribucion")
-      .style.display="none";
+      .style.display = "none";
 
-function renderEditorDistribucion(){
-  const box=
+function renderEditorDistribucion() {
+  const box =
     $("listaDistribucionEditar");
 
-  box.innerHTML=
+  box.innerHTML =
     distribucion
       .filter(
-        c=>c.activo!==false
+        c => c.activo !== false
       )
       .map(
-        c=>`
+        c => `
           <div class="distribucion-edit-row">
 
             <span>
@@ -1743,7 +1899,7 @@ function renderEditorDistribucion(){
               type="number"
               min="0"
               step="0.01"
-              value="${Number(c.limite)||0}"
+              value="${Number(c.limite) || 0}"
               data-id="${c.id}"
               title="Monto de control"
             >
@@ -1768,104 +1924,107 @@ function renderEditorDistribucion(){
       .join("");
 }
 
-window.editarArea=id=>{
-  const c=
+window.editarArea = id => {
+  const c =
     distribucion.find(
-      x=>x.id===id
+      x => x.id === id
     );
 
-  if(!c)return;
+  if (!c) return;
 
-  const n=
+  const n =
     prompt(
       "Nombre del área:",
       c.nombre
     );
 
-  if(n===null)return;
+  if (n === null) return;
 
-  const i=
+  const i =
     prompt(
       "Ícono (emoji):",
-      c.icono||"📦"
+      c.icono || "📦"
     );
 
-  if(i===null)return;
+  if (i === null) return;
 
-  c.nombre=
-    n.trim()||
-    c.nombre;
+  c.nombre =
+    n.trim() || c.nombre;
 
-  c.icono=
-    i.trim()||
-    c.icono;
+  c.icono =
+    i.trim() || c.icono;
+
+  guardarDistribucion();
 
   renderEditorDistribucion();
   render();
 };
 
-window.eliminarArea=id=>{
-  if(
-    distribucion
-      .filter(
-        x=>x.activo!==false
-      )
-      .length<=1
-  ){
+window.eliminarArea = id => {
+  if (
+    distribucion.filter(
+      x => x.activo !== false
+    ).length <= 1
+  ) {
     return alert(
       "Debes conservar al menos un área."
     );
   }
 
-  const c=
+  const c =
     distribucion.find(
-      x=>x.id===id
+      x => x.id === id
     );
 
-  if(
+  if (
     c &&
     confirm(
       `¿Eliminar ${c.nombre} de la distribución? Sus movimientos históricos se conservarán.`
     )
-  ){
-    c.activo=false;
+  ) {
+    c.activo = false;
+
+    guardarDistribucion();
 
     renderEditorDistribucion();
     render();
   }
 };
 
-$("formNuevaArea").onsubmit=e=>{
+$("formNuevaArea").onsubmit = e => {
   e.preventDefault();
 
-  const nombre=
+  const nombre =
     $("nuevaAreaNombre")
       .value
       .trim();
 
-  const icono=
+  const icono =
     $("nuevaAreaIcono")
       .value
-      .trim()||
+      .trim() ||
     "📦";
 
-  const limite=
+  const limite =
     Number(
       $("nuevaAreaLimite").value
-    )||0;
+    ) || 0;
 
-  if(!nombre)
+  if (!nombre) {
     return alert(
       "Escribe un nombre para el área."
     );
+  }
 
   distribucion.push({
-    id:crypto.randomUUID(),
+    id: crypto.randomUUID(),
     nombre,
     icono,
     limite,
-    activo:true
+    activo: true
   });
+
+  guardarDistribucion();
 
   e.target.reset();
 
@@ -1874,139 +2033,169 @@ $("formNuevaArea").onsubmit=e=>{
   render();
 };
 
-$("guardarLimitesDistribucion").onclick=()=>{
-  document
-    .querySelectorAll(
-      "#listaDistribucionEditar input[data-id]"
-    )
-    .forEach(i=>{
-      const c=
-        distribucion.find(
-          x=>x.id===i.dataset.id
-        );
+$("guardarLimitesDistribucion").onclick =
+  () => {
+    document
+      .querySelectorAll(
+        "#listaDistribucionEditar input[data-id]"
+      )
+      .forEach(i => {
+        const c =
+          distribucion.find(
+            x =>
+              x.id ===
+              i.dataset.id
+          );
 
-      if(c)
-        c.limite=
-          Number(i.value)||0;
-    });
+        if (c) {
+          c.limite =
+            Number(i.value) || 0;
+        }
+      });
 
-  $("modalDistribucion")
-    .style.display="none";
+    guardarDistribucion();
 
-  render();
-};
+    $("modalDistribucion")
+      .style.display = "none";
 
-$("limpiarMovimientos").onclick=()=>{
-  if(
+    render();
+  };
+
+/* =========================================================
+   LIMPIAR MOVIMIENTOS
+   ========================================================= */
+
+$("limpiarMovimientos").onclick = () => {
+  if (
     confirm(
       "¿Seguro que quieres eliminar todos los movimientos? Esta acción no se puede deshacer."
     )
-  ){
-    movimientos=[];
+  ) {
+    movimientos = [];
+
+    guardarMovimientos();
 
     render();
   }
 };
 
-$("filtroCategoria").onchange=
-  ()=>renderHistorial();
+/* =========================================================
+   FILTROS
+   ========================================================= */
 
-$("filtroTipo").onchange=
-  ()=>renderHistorial();
+$("filtroCategoria").onchange =
+  () => renderHistorial();
 
-$("filtroPeriodo").onchange=
-  ()=>renderHistorial();
+$("filtroTipo").onchange =
+  () => renderHistorial();
 
-$("filtroDesde").onchange=
-  ()=>renderHistorial();
+$("filtroPeriodo").onchange =
+  () => renderHistorial();
 
-$("filtroHasta").onchange=
-  ()=>renderHistorial();
+$("filtroDesde").onchange =
+  () => renderHistorial();
 
-$("gestionarMovimientos").onclick=()=>{
-  renderHistorial(true);
+$("filtroHasta").onchange =
+  () => renderHistorial();
 
-  $("seccionHistorial")
-    .style.display="block";
+$("gestionarMovimientos").onclick =
+  () => {
+    renderHistorial(true);
 
-  $("seccionHistorial")
-    .scrollIntoView({
-      behavior:"smooth",
-      block:"start"
-    });
-};
+    $("seccionHistorial")
+      .style.display = "block";
+
+    $("seccionHistorial")
+      .scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+  };
 
 $("seccionHistorial")
-  .style.display="none";
+  .style.display = "none";
 
-function exportar(filtro){
-  let arr=
+/* =========================================================
+   EXPORTAR
+   ========================================================= */
+
+function exportar(filtro) {
+  let arr =
     movimientos.slice();
 
-  if(filtro==="semana"){
-    arr=
+  if (filtro === "semana") {
+    arr =
       arr.filter(
-        m=>
-          (Date.now()-
-            new Date(m.fecha))/
-          86400000<=7
+        m =>
+          (Date.now() -
+            new Date(m.fecha)) /
+            86400000 <=
+          7
       );
   }
 
-  if(filtro==="mes"){
-    const n=new Date();
+  if (filtro === "mes") {
+    const n =
+      new Date();
 
-    arr=
-      arr.filter(m=>{
-        const d=
+    arr =
+      arr.filter(m => {
+        const d =
           new Date(m.fecha);
 
-        return(
-          d.getMonth()===n.getMonth() &&
-          d.getFullYear()===n.getFullYear()
+        return (
+          d.getMonth() ===
+            n.getMonth() &&
+          d.getFullYear() ===
+            n.getFullYear()
         );
       });
   }
 
-  const csv=
-    "Fecha,Tipo,Categoría,Monto,Descripción,Tipo de gasto\n"+
+  const csv =
+    "Fecha,Tipo,Categoría,Monto,Descripción,Tipo de gasto\n" +
     arr
       .map(
-        m=>[
-          fechaTexto(m.fecha),
-          m.tipo,
-          m.categoria==="ahorro"
-            ?"Ahorro"
-            :(
-              m.categoria==="retiro_ahorro"
-                ?"Retiro de ahorro"
-                :(
-                  distribucion.find(
-                    c=>c.id===m.categoria
-                  )?.nombre||
-                  m.categoria
-                )
-            ),
-          m.monto,
-          m.descripcion,
-          m.tipoGasto||""
-        ]
-        .map(
-          x=>
-            `"${String(x??"")
-              .replaceAll('"','""')}"`
-        )
-        .join(",")
+        m =>
+          [
+            fechaTexto(m.fecha),
+            m.tipo,
+            m.categoria === "ahorro"
+              ? "Ahorro"
+              : m.categoria ===
+                "retiro_ahorro"
+                ? "Retiro de ahorro"
+                : (
+                    distribucion.find(
+                      c =>
+                        c.id ===
+                        m.categoria
+                    )?.nombre ||
+                    m.categoria
+                  ),
+            m.monto,
+            m.descripcion,
+            m.tipoGasto || ""
+          ]
+            .map(
+              x =>
+                `"${String(x ?? "")
+                  .replaceAll(
+                    '"',
+                    '""'
+                  )}"`
+            )
+            .join(",")
       )
       .join("\n");
 
-  const a=
+  const a =
     document.createElement("a");
 
-  a.href=
+  a.href =
     URL.createObjectURL(
       new Blob(
-        ["\ufeff"+csv],
+        ["\ufeff" + csv],
         {
           type:
             "text/csv;charset=utf-8"
@@ -2014,7 +2203,7 @@ function exportar(filtro){
       )
     );
 
-  a.download=
+  a.download =
     `finanzas_${filtro}.csv`;
 
   a.click();
@@ -2022,64 +2211,96 @@ function exportar(filtro){
   URL.revokeObjectURL(a.href);
 }
 
-$("exportarSemana").onclick=
-  ()=>exportar("semana");
+$("exportarSemana").onclick =
+  () => exportar("semana");
 
-$("exportarMes").onclick=
-  ()=>exportar("mes");
+$("exportarMes").onclick =
+  () => exportar("mes");
 
-$("exportarTodo").onclick=
-  ()=>exportar("todo");
+$("exportarTodo").onclick =
+  () => exportar("todo");
 
-$("botonConfiguracion").onclick=
-  ()=>alert(
-    "La configuración de cuenta y datos se mantiene local en este dispositivo. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos."
-  );
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
+
+$("botonConfiguracion").onclick =
+  () =>
+    alert(
+      "La configuración de cuenta y datos se mantiene local en este dispositivo. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos."
+    );
+
+/* =========================================================
+   INICIO
+   ========================================================= */
 
 $("tipoSalida").dispatchEvent(
   new Event("change")
 );
 
-let sessionId=null;
+let sessionId = null;
 
-try{
-  sessionId=
+try {
+  sessionId =
     localStorage.getItem(
       SESSION_KEY
     );
-}catch{}
+} catch {}
 
-const u=
+const u =
   usuarios().find(
-    x=>x.id===sessionId
+    x => x.id === sessionId
   );
 
-if(u){
-  usuario=u;
+if (u) {
+  usuario = u;
   mostrarApp();
-}else{
+} else {
   $("pantallaAuth")
-    .style.display="flex";
+    .style.display = "flex";
 
   $("app")
-    .style.display="none";
+    .style.display = "none";
 }
 
-/* Mantener actualizado el Service Worker
-   para evitar que Vercel entregue una versión antigua. */
+/* =========================================================
+   IMPORTANTE:
+   NO REGISTRAR SERVICE WORKER
+   ========================================================= */
 
-if("serviceWorker" in navigator){
+/*
+  Se elimina el registro del Service Worker
+  para evitar que Vercel entregue una versión
+  antigua de app.js o index.html.
+
+  Si existe uno antiguo, lo desregistramos.
+*/
+
+if ("serviceWorker" in navigator) {
   window.addEventListener(
     "load",
-    ()=>{
-      navigator.serviceWorker
-        .register("./sw.js")
-        .then(
-          reg=>reg.update()
-        )
-        .catch(
-          ()=>{}
-        );
+    async () => {
+      try {
+        const registrations =
+          await navigator.serviceWorker
+            .getRegistrations();
+
+        for (const registration of registrations) {
+          await registration.unregister();
+        }
+
+        if (
+          window.caches &&
+          caches.keys
+        ) {
+          const keys =
+            await caches.keys();
+
+          for (const key of keys) {
+            await caches.delete(key);
+          }
+        }
+      } catch {}
     }
   );
 }
