@@ -122,7 +122,7 @@
     <div class="balance-grid"><div><small>Ingresos</small><strong id="balanceIngresos">$0.00</strong></div><div><small>Gastos</small><strong id="balanceGastos">$0.00</strong></div><div><small>Ahorro</small><strong id="balanceAhorro">$0.00</strong></div><div class="balance-disponible"><small>Dinero disponible</small><strong id="balanceDisponible">$0.00</strong></div></div>
   </section>
 
-  <section class="panel" id="seccionHistorial">
+  <section class="panel" id="seccionHistorial" style="display:none">
     <div class="seccion-cabecera"><div><span class="etiqueta">MOVIMIENTOS</span><h2>📋 Historial completo</h2></div><div class="acciones-cabecera"><span id="contadorHistorial" class="periodo">0 movimientos</span></div></div>
     <div class="filtros filtros-historial"><select id="filtroCategoria"><option value="todas">Todas las categorías</option></select><select id="filtroTipo"><option value="todos">Todos los tipos</option><option value="ingreso">Ingresos</option><option value="gasto">Gastos</option><option value="ahorro">Aportes a ahorro</option><option value="retiro_ahorro">Retiros de ahorro</option></select><select id="filtroPeriodo"><option value="todos">Todo el período</option><option value="dia">Hoy</option><option value="semana">Esta semana</option><option value="mes">Este mes</option></select><input type="date" id="filtroDesde" aria-label="Desde"><input type="date" id="filtroHasta" aria-label="Hasta"></div>
     <div id="historialMovimientos" class="historial-lista"></div>
