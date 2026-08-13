@@ -521,3 +521,34 @@ input:focus, select:focus {
   color: var(--texto-secundario);
   font-size: 12px;
 }
+.tarjeta span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tarjeta span::first-letter {
+  font-size: 20px;
+}
+
+.tarjeta strong {
+  letter-spacing: -0.5px;
+}
+
+.tarjeta {
+  position: relative;
+  overflow: hidden;
+}
+
+.tarjeta::after {
+  content: "";
+  position: absolute;
+  right: -25px;
+  bottom: -30px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: var(--principal-suave);
+  opacity: .55;
+  pointer-events: none;
+}
