@@ -102,7 +102,64 @@ function actualizarSelects(){
   const filtro=$("filtroCategoria");filtro.innerHTML='<option value="todas">Todas las categorías</option>'+distribucion.filter(x=>x.activo!==false).map(c=>`<option value="${c.id}">${escapeHtml(c.icono||"📦")} ${escapeHtml(c.nombre)}</option>`).join("")+`<option value="ahorro">💎 Aporte a ahorro</option><option value="retiro_ahorro">↩️ Retiro de ahorro</option>`;
   const fijo=$("gastoFijoSeleccion");fijo.innerHTML='<option value="">Selecciona un gasto fijo</option>'+gastosFijos.filter(x=>x.activo!==false).map(g=>`<option value="${g.id}">${escapeHtml(g.nombre)} — ${money(g.monto)}</option>`).join("");
 }
-function renderHistorial(){const cat=$("filtroCategoria").value,tipo=$("filtroTipo").value,periodo=$("filtroPeriodo").value,desde=$("filtroDesde").value,hasta=$("filtroHasta").value;let arr=movimientos.slice();if(cat!=="todas")arr=arr.filter(m=>m.categoria===cat||m.tipo===cat);if(tipo!=="todos")arr=arr.filter(m=>m.tipo===tipo);const now=new Date();if(periodo==="semana")arr=arr.filter(m=>{const d=new Date(m.fecha),diff=(now-d)/86400000;return diff>=0&&diff<7});if(periodo==="mes")arr=arr.filter(m=>{const d=new Date(m.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});if(periodo==="dia")arr=arr.filter(m=>m.fecha.slice(0,10)===hoyISO());if(desde)arr=arr.filter(m=>m.fecha.slice(0,10)>=desde);if(hasta)arr=arr.filter(m=>m.fecha.slice(0,10)<=hasta);const lista=arr.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));const box=$("historialMovimientos");box.innerHTML=lista.length?lista.map(renderMovimiento).join(""):`<div class="historial-vacio"><span>📋</span>No hay movimientos con estos filtros.</div>`;$("contadorHistorial").textContent=`${lista.length} movimiento${lista.length===1?"":"s"}`}
+function renderHistorial(completo=false){
+  const cat=$("filtroCategoria").value,
+        tipo=$("filtroTipo").value,
+        periodo=$("filtroPeriodo").value,
+        desde=$("filtroDesde").value,
+        hasta=$("filtroHasta").value;
+
+  let arr=movimientos.slice();
+
+  if(cat!=="todas")
+    arr=arr.filter(m=>m.categoria===cat||m.tipo===cat);
+
+  if(tipo!=="todos")
+    arr=arr.filter(m=>m.tipo===tipo);
+
+  const now=new Date();
+
+  if(periodo==="semana")
+    arr=arr.filter(m=>{
+      const d=new Date(m.fecha),diff=(now-d)/86400000;
+      return diff>=0&&diff<7;
+    });
+
+  if(periodo==="mes")
+    arr=arr.filter(m=>{
+      const d=new Date(m.fecha);
+      return d.getMonth()===now.getMonth()&&
+             d.getFullYear()===now.getFullYear();
+    });
+
+  if(periodo==="dia")
+    arr=arr.filter(m=>m.fecha.slice(0,10)===hoyISO());
+
+  if(desde)
+    arr=arr.filter(m=>m.fecha.slice(0,10)>=desde);
+
+  if(hasta)
+    arr=arr.filter(m=>m.fecha.slice(0,10)<=hasta);
+
+  arr.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+
+  const listaCompleta=arr;
+
+  if(!completo){
+    arr=arr.slice(0,3);
+  }
+
+  const box=$("historialMovimientos");
+
+  box.innerHTML=arr.length
+    ? arr.map(renderMovimiento).join("")
+    : `<div class="historial-vacio">
+        <span>📋</span>No hay movimientos con estos filtros.
+      </div>`;
+
+  $("contadorHistorial").textContent=
+    `${listaCompleta.length} movimiento${listaCompleta.length===1?"":"s"}`;
+}
 function renderMovimiento(m){const esIngreso=m.tipo==="ingreso",esAhorro=m.tipo==="ahorro",esRetiro=m.tipo==="retiro_ahorro",cat=distribucion.find(c=>c.id===m.categoria),icon=esIngreso?"💰":esAhorro?"💎":esRetiro?"↩️":cat?.icono||"💸",nombre=esIngreso?"Ingreso":esAhorro?"Aporte a ahorro":esRetiro?"Retiro de ahorro":cat?.nombre||"Gasto";const signo=esIngreso?"+":esRetiro?"↩":"-";return `<div class="movimiento-historial"><div class="movimiento-principal"><div class="movimiento-icono">${icon}</div><div><strong>${escapeHtml(m.descripcion||nombre)}</strong><small>${escapeHtml(nombre)} · ${fechaTexto(m.fecha)}${m.origenFijo?" · Gasto fijo":""}</small></div></div><div class="movimiento-valor"><strong class="${esIngreso?"ingreso":esRetiro?"retiro":"gasto"}">${signo}${money(m.monto)}</strong><br><button class="boton-secundario boton-pequeno" onclick="editarMovimiento('${m.id}')">Editar</button> <button class="boton-eliminar" onclick="eliminarMovimiento('${m.id}')">✕</button></div></div>`}
 
 function render(){actualizarSelects();renderResumen();renderCategorias();renderHistorial();renderGastosFijos();guardarDatos()}
