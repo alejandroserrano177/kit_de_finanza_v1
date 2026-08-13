@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kit de Finanzas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="pantallaAuth" class="auth-overlay">
+  <div class="auth-card">
+    <span class="etiqueta">MI CONTROL FINANCIERO</span>
+    <h1>💰 Kit de Finanzas</h1>
+    <p class="auth-subtitulo">Tus finanzas, guardadas en este dispositivo.</p>
+
+    <div class="auth-tabs">
+      <button id="tabLogin" class="auth-tab activo">Iniciar sesión</button>
+      <button id="tabRegistro" class="auth-tab">Crear cuenta</button>
+    </div>
+
+    <!-- FORMULARIO LOGIN -->
+    <form id="formLogin" class="formulario auth-form">
+      <label for="loginCorreo">Correo electrónico</label>
+      <input type="email" id="loginCorreo" autocomplete="email" required>
+      <label for="loginPassword">Contraseña</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required>
+      <button class="boton-principal">Iniciar sesión</button>
+      
+      <div style="text-align: right; margin-top: 8px;">
+        <button type="button" id="btnOlvidoPass" class="boton-enlace">¿Olvidaste tu contraseña?</button>
+      </div>
+      
+      <p id="loginMensaje" class="auth-mensaje"></p>
+    </form>
+
+    <!-- FORMULARIO REGISTRO -->
+    <form id="formRegistro" class="formulario auth-form" style="display:none">
+      <label for="registroNombre">Nombre</label>
+      <input type="text" id="registroNombre" autocomplete="name" required>
+      <label for="registroCorreo">Correo electrónico</label>
+      <input type="email" id="registroCorreo" autocomplete="email" required>
+      <label for="registroPassword">Contraseña</label>
+      <input type="password" id="registroPassword" autocomplete="new-password" minlength="6" required>
+      <label for="registroPassword2">Confirmar contraseña</label>
+      <input type="password" id="registroPassword2" autocomplete="new-password" minlength="6" required>
+      
+      <label for="registroClaveRecuperacion">Clave secreta de recuperación (PIN de 4 dígitos o palabra)</label>
+      <input type="text" id="registroClaveRecuperacion" placeholder="Ej. 1234 o MiMascota" required>
+      
+      <button class="boton-principal">Crear cuenta</button>
+      <p id="registroMensaje" class="auth-mensaje"></p>
+    </form>
+
+    <!-- FORMULARIO RECUPERAR CONTRASEÑA -->
+    <form id="formRecuperar" class="formulario auth-form" style="display:none">
+      <span class="etiqueta">RESTABLECER CONTRASEÑA</span>
+      <label for="recuperarCorreo">Correo electrónico</label>
+      <input type="email" id="recuperarCorreo" required>
+      
+      <label for="recuperarClave">Clave secreta de recuperación</label>
+      <input type="text" id="recuperarClave" required>
+      
+      <label for="nuevaPassword">Nueva contraseña</label>
+      <input type="password" id="nuevaPassword" minlength="6" required>
+      
+      <button class="boton-principal">Restablecer contraseña</button>
+      <button type="button" id="btnCancelarRecuperacion" class="boton-secundario" style="margin-top: 6px;">Volver</button>
+      <p id="recuperarMensaje" class="auth-mensaje"></p>
+    </form>
+
+    <small class="auth-nota">Esta versión guarda la cuenta y los datos localmente en este navegador.</small>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+<header class="encabezado">
+  <div>
+    <span class="etiqueta">MI CONTROL FINANCIERO</span>
+    <h1>💰 Kit de Finanzas</h1>
+    <small id="usuarioActual" class="usuario-actual"></small>
+  </div>
+  <div class="encabezado-acciones">
+    <button id="botonCerrarSesion" class="boton-secundario boton-sesion">Cerrar sesión</button>
+    <button id="botonConfiguracion" class="boton-icono" title="Configuración">⚙️</button>
+  </div>
+</header>
+
+<main class="contenedor">
+  <section class="resumen">
+    <article class="tarjeta resumen-ingresos tarjeta-interactiva" id="tarjetaIngresos" role="button" tabindex="0" title="Registrar ingreso"><span>💰 Ingresos</span><strong id="totalIngresos">$0.00</strong><small>Este período</small></article>
+    <article class="tarjeta resumen-gastos tarjeta-interactiva" id="tarjetaGastos" role="button" tabindex="0" title="Registrar gasto"><span>🔴 Gastos</span><strong id="totalGastos">$0.00</strong><small>Total gastado</small></article>
+    <article class="tarjeta resumen-balance"><span>📊 Balance</span><strong id="totalBalance">$0.00</strong><small>Disponible</small></article>
+    <article class="tarjeta resumen-ahorro tarjeta-interactiva" id="tarjetaAhorro" role="button" tabindex="0" title="Registrar ahorro"><span>💎 Ahorro</span><strong id="totalAhorro">$0.00</strong><small>Total ahorrado</small></article>
+  </section>
+  <div class="barra-accesos"><button id="gestionarMovimientos" class="boton-secundario">📋 Gestionar movimientos</button></div>
+
+ <section id="formularioIngreso" class="panel formulario-panel" style="display:none"></section>
+    <div class="panel-titulo"><div><span class="etiqueta">NUEVO MOVIMIENTO</span><h2>💰 Registrar ingreso</h2></div><button id="cerrarFormularioIngreso" class="boton-cerrar">✕</button></div>
+    <form id="formIngreso" class="formulario">
+      <label for="tipoIngreso">Tipo de ingreso</label>
+      <select id="tipoIngreso"><option value="">Selecciona un tipo</option><option value="sueldo">💼 Sueldo</option><option value="trabajo_extra">🛠️ Trabajos extra</option><option value="otros">💰 Otros ingresos</option></select>
+      <label for="montoIngreso">Monto</label><input type="number" id="montoIngreso" placeholder="0.00" min="0" step="0.01">
+      <label for="fechaIngreso">Fecha</label><input type="date" id="fechaIngreso">
+      <label for="descripcionIngreso">Descripción</label><input type="text" id="descripcionIngreso" placeholder="¿De dónde provino?">
+      <button class="boton-principal">Guardar ingreso</button>
+    </form>
+  </section>
+
+  <section id="formularioGasto" class="panel formulario-panel" style="display:none"></section>
+    <div class="panel-titulo"><div><span class="etiqueta">NUEVO MOVIMIENTO</span><h2>🔴 Registrar gasto</h2></div><button id="cerrarFormularioGasto" class="boton-cerrar">✕</button></div>
+    <form id="formGasto" class="formulario">
+      <label for="tipoSalida">¿Qué quieres registrar?</label>
+      <select id="tipoSalida"><option value="gasto">🔴 Gasto</option><option value="ahorro">💎 Aporte a ahorro</option><option value="retiro_ahorro">↩️ Retiro de ahorro</option></select>
+      <div id="camposGasto">
+        <label for="categoria">Categoría</label><select id="categoria"><option value="">Selecciona una categoría</option></select>
+      </div>
+      <div id="campoGastoFijo"><label for="gastoFijoSeleccion">Gasto fijo</label><select id="gastoFijoSeleccion"><option value="">No es un gasto fijo</option></select></div>
+      <div id="campoRetiroAhorro" style="display:none"><small class="descripcion-panel">El retiro disminuirá tu ahorro, pero no será contado como ingreso ni como gasto.</small></div>
+      <label for="monto">Monto</label><input type="number" id="monto" placeholder="0.00" min="0" step="0.01">
+      <label for="fechaGasto">Fecha</label><input type="date" id="fechaGasto">
+      <label for="descripcion">Descripción</label><input type="text" id="descripcion" placeholder="¿En qué gastaste?">
+      <div id="campoTipoGasto"><label for="tipoGasto">Tipo de gasto</label><select id="tipoGasto"><option value="N">N — Necesidad</option><option value="A">A — Antojo</option><option value="P">P — Planificado</option><option value="I">I — Imprevisto</option></select></div>
+      <button id="guardarSalida" class="boton-principal">Guardar gasto</button>
+    </form>
+  </section>
+
+  <section class="panel gastos-fijos-panel">
+    <div class="seccion-cabecera">
+      <div><span class="etiqueta">GASTOS FIJOS</span><h2>📌 Gastos fijos del mes</h2></div>
+      <button id="mostrarFormFijo" class="boton-secundario">＋ Agregar</button>
+    </div>
+    <form id="formGastoFijo" class="formulario formulario-fijo" style="display:none">
+      <input type="hidden" id="fijoId">
+      <div class="fijo-grid">
+        <div><label for="fijoNombre">Nombre</label><input id="fijoNombre" type="text" placeholder="Ej. Alquiler" required></div>
+        <div><label for="fijoMonto">Monto</label><input id="fijoMonto" type="number" min="0" step="0.01" placeholder="0.00" required></div>
+        <div><label for="fijoDia">Día de pago</label><input id="fijoDia" type="number" min="1" max="31" placeholder="15" required></div>
+      </div>
+      <div class="acciones-form"><button class="boton-principal">Guardar gasto fijo</button><button type="button" id="cancelarFijo" class="boton-secundario">Cancelar</button></div>
+    </form>
+    <div id="listaGastosFijos" class="fijos-lista"></div>
+  </section>
+
+  <section class="seccion-categorias">
+    <div class="seccion-cabecera"><div><span class="etiqueta">DISTRIBUCIÓN</span></div><div class="acciones-cabecera"><span class="periodo">Este mes</span><button id="mostrarDistribucion" class="boton-secundario boton-pequeno">⚙️ Modificar</button></div></div>
+    <div class="grid-categorias" id="gridCategorias"></div>
+  </section>
+
+  <section class="panel balance-panel">
+    <div class="seccion-cabecera"><div><span class="etiqueta">BALANCE</span><h2>📊 Resumen financiero</h2></div><span class="periodo">Todo el período</span></div>
+    <div class="balance-grid"><div><small>Ingresos</small><strong id="balanceIngresos">$0.00</strong></div><div><small>Gastos</small><strong id="balanceGastos">$0.00</strong></div><div><small>Ahorro</small><strong id="balanceAhorro">$0.00</strong></div><div class="balance-disponible"><small>Dinero disponible</small><strong id="balanceDisponible">$0.00</strong></div></div>
+  </section>
+
+  <section class="panel" id="seccionHistorial">
+    <div class="seccion-cabecera"><div><span class="etiqueta">MOVIMIENTOS</span><h2>📋 Historial completo</h2></div><div class="acciones-cabecera"><span id="contadorHistorial" class="periodo">0 movimientos</span></div></div>
+    <div class="filtros filtros-historial"><select id="filtroCategoria"><option value="todas">Todas las categorías</option></select><select id="filtroTipo"><option value="todos">Todos los tipos</option><option value="ingreso">Ingresos</option><option value="gasto">Gastos</option><option value="ahorro">Aportes a ahorro</option><option value="retiro_ahorro">Retiros de ahorro</option></select><select id="filtroPeriodo"><option value="todos">Todo el período</option><option value="dia">Hoy</option><option value="semana">Esta semana</option><option value="mes">Este mes</option></select><input type="date" id="filtroDesde" aria-label="Desde"><input type="date" id="filtroHasta" aria-label="Hasta"></div>
+    <div id="historialMovimientos" class="historial-lista"></div>
+    <button id="limpiarMovimientos" class="boton-peligro">🗑️ Limpiar movimientos</button>
+  </section>
+
+  <section id="formularioEdicion" class="panel formulario-panel" style="display:none"></section>
+    <div class="panel-titulo"><div><span class="etiqueta">EDITAR MOVIMIENTO</span><h2>✏️ Modificar movimiento</h2></div><button id="cancelarEdicion" class="boton-cerrar">✕</button></div>
+    <form id="formEdicion" class="formulario"><input type="hidden" id="editarId"><label for="editarTipo">Tipo</label><select id="editarTipo"><option value="ingreso">Ingreso</option><option value="gasto">Gasto</option><option value="ahorro">Aporte a ahorro</option><option value="retiro_ahorro">Retiro de ahorro</option></select><label for="editarCategoria">Categoría</label><select id="editarCategoria"></select><label for="editarMonto">Monto</label><input type="number" id="editarMonto" min="0.01" step="0.01"><label for="editarFecha">Fecha</label><input type="date" id="editarFecha"><label for="editarDescripcion">Descripción</label><input type="text" id="editarDescripcion"><button class="boton-principal">Guardar cambios</button></form>
+  </section>
+
+  <div id="modalDistribucion" class="modal-overlay" style="display:none"><div class="modal-card"><div class="panel-titulo"><div><span class="etiqueta">PERSONALIZAR</span><h2>📊 Distribución</h2></div><button id="cerrarDistribucion" class="boton-cerrar">✕</button></div><form id="formNuevaArea" class="formulario"><label for="nuevaAreaNombre">Nueva área</label><input id="nuevaAreaNombre" placeholder="Ej. Salud"><label for="nuevaAreaIcono">Ícono</label><input id="nuevaAreaIcono" placeholder="💚"><label for="nuevaAreaLimite">Monto de control</label><input type="number" id="nuevaAreaLimite" min="0" step="0.01"><button class="boton-principal">＋ Agregar área</button></form><div id="listaDistribucionEditar" class="lista-edicion"></div><button id="guardarLimitesDistribucion" class="boton-principal">Guardar distribución</button></div></div>
+
+  <section class="panel">
+    <span class="etiqueta">DATOS</span><h2>📥 Exportar información</h2>
+    <p class="descripcion-panel">Descarga tus movimientos para analizarlos posteriormente en Excel.</p>
+    <div class="exportacion-opciones"><button id="exportarSemana" class="boton-secundario">📅 Descargar semana</button><button id="exportarMes" class="boton-secundario">📆 Descargar mes</button><button id="exportarTodo" class="boton-secundario">📊 Descargar todo</button></div>
+  </section>
+</main>
+<footer class="pie">Kit de Finanzas 💙</footer>
+</div>
+<script src="app.js"></script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script>
+</body>
+</html>
