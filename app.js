@@ -751,13 +751,11 @@ function renderResumen() {
         ? "var(--rojo)"
         : "var(--principal)";
 
-  $("totalBalance")
-    .style.color =
-      disponible < 0
-        ? "var(--rojo)"
-        : "var(--principal)";
+  $("totalBalance").style.color =
+    disponible < 0
+      ? "var(--rojo)"
+      : "var(--principal)";
 }
-
 
 /* =========================================================
    CATEGORÍAS
