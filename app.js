@@ -45,7 +45,8 @@ let usuario = null;
 let movimientos = [];
 let gastosFijos = [];
 let categorias = {};
-let distribucion = {};
+let distribucion = [];
+let historialAbierto = false;
 
 
 /* =========================================================
@@ -276,6 +277,38 @@ function fechaISO(valor) {
 }
 
 
+function inicioSemanaISO() {
+
+  const hoy =
+    parseFechaLocal(
+      hoyISO()
+    );
+
+  const dia =
+    hoy.getDay();
+
+  const diferencia =
+    dia === 0
+      ? 6
+      : dia - 1;
+
+  hoy.setDate(
+    hoy.getDate() -
+    diferencia
+  );
+
+  return [
+    hoy.getFullYear(),
+    String(
+      hoy.getMonth() + 1
+    ).padStart(2, "0"),
+    String(
+      hoy.getDate()
+    ).padStart(2, "0")
+  ].join("-");
+}
+
+
 /* =========================================================
    UTILIDADES
    ========================================================= */
@@ -324,6 +357,29 @@ function crearFijosDefault() {
 }
 
 
+function siguienteOrdenMovimiento() {
+
+  const ordenes =
+    movimientos
+      .map(
+        m =>
+          Number(m.orden)
+      )
+      .filter(
+        Number.isFinite
+      );
+
+  if (!ordenes.length) {
+    return movimientos.length + 1;
+  }
+
+  return (
+    Math.max(...ordenes) +
+    1
+  );
+}
+
+
 /* =========================================================
    MIGRACIÓN
    ========================================================= */
@@ -332,22 +388,31 @@ function migrarEstructuras() {
 
   movimientos =
     Array.isArray(movimientos)
-      ? movimientos.map(m => ({
+      ? movimientos.map(
+          (m, index) => ({
 
-          ...m,
+            ...m,
 
-          id:
-            m.id ||
-            crypto.randomUUID(),
+            id:
+              m.id ||
+              crypto.randomUUID(),
 
-          fecha:
-            fechaISO(m.fecha) ||
-            hoyISO(),
+            fecha:
+              fechaISO(m.fecha) ||
+              hoyISO(),
 
-          monto:
-            Number(m.monto) || 0
+            monto:
+              Number(m.monto) || 0,
 
-        }))
+            orden:
+              Number.isFinite(
+                Number(m.orden)
+              )
+                ? Number(m.orden)
+                : index + 1
+
+          })
+        )
       : [];
 
 
@@ -551,6 +616,8 @@ function mostrarApp() {
 
   establecerFechasHoy();
 
+  historialAbierto = false;
+
   render();
 }
 
@@ -573,6 +640,7 @@ function cerrarSesion() {
   gastosFijos = [];
   categorias = {};
   distribucion = [];
+  historialAbierto = false;
 
 
   cerrarPaneles();
@@ -990,7 +1058,7 @@ function renderResumen() {
     .style.color =
     disponible < 0
       ? "var(--rojo-alerta)"
-      : "var(--celeste-accent)";
+      : "var(--texto-principal)";
 }
 
 
@@ -1766,8 +1834,8 @@ function renderMovimientosRecientes() {
       .slice()
       .sort(
         (a, b) =>
-          parseFechaLocal(b.fecha) -
-          parseFechaLocal(a.fecha)
+          Number(b.orden || 0) -
+          Number(a.orden || 0)
       )
       .slice(0, 3);
 
@@ -1869,60 +1937,8 @@ function renderHistorial(
   }
 
 
-  const now =
-    new Date();
-
-
-  if (
-    periodo === "semana"
-  ) {
-
-    arr =
-      arr.filter(m => {
-
-        const d =
-          parseFechaLocal(
-            m.fecha
-          );
-
-
-        const diff =
-          (
-            now -
-            d
-          ) /
-          86400000;
-
-
-        return (
-          diff >= 0 &&
-          diff <= 7
-        );
-      });
-  }
-
-
-  if (
-    periodo === "mes"
-  ) {
-
-    arr =
-      arr.filter(m => {
-
-        const d =
-          parseFechaLocal(
-            m.fecha
-          );
-
-
-        return (
-          d.getMonth() ===
-            now.getMonth() &&
-          d.getFullYear() ===
-            now.getFullYear()
-        );
-      });
-  }
+  const hoy =
+    hoyISO();
 
 
   if (
@@ -1932,8 +1948,67 @@ function renderHistorial(
     arr =
       arr.filter(
         m =>
-          fechaISO(m.fecha) ===
-          hoyISO()
+          fechaISO(
+            m.fecha
+          ) === hoy
+      );
+  }
+
+
+  if (
+    periodo === "semana"
+  ) {
+
+    const inicio =
+      inicioSemanaISO();
+
+    arr =
+      arr.filter(
+        m => {
+
+          const fecha =
+            fechaISO(
+              m.fecha
+            );
+
+          return (
+            fecha >= inicio &&
+            fecha <= hoy
+          );
+        }
+      );
+  }
+
+
+  if (
+    periodo === "mes"
+  ) {
+
+    const ahora =
+      parseFechaLocal(
+        hoy
+      );
+
+    const mes =
+      ahora.getMonth();
+
+    const anio =
+      ahora.getFullYear();
+
+    arr =
+      arr.filter(
+        m => {
+
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+          return (
+            d.getMonth() === mes &&
+            d.getFullYear() === anio
+          );
+        }
       );
   }
 
@@ -1961,9 +2036,28 @@ function renderHistorial(
 
 
   arr.sort(
-    (a, b) =>
-      parseFechaLocal(b.fecha) -
-      parseFechaLocal(a.fecha)
+    (a, b) => {
+
+      const fechaA =
+        fechaISO(a.fecha);
+
+      const fechaB =
+        fechaISO(b.fecha);
+
+      if (
+        fechaA !== fechaB
+      ) {
+
+        return fechaB.localeCompare(
+          fechaA
+        );
+      }
+
+      return (
+        Number(b.orden || 0) -
+        Number(a.orden || 0)
+      );
+    }
   );
 
 
@@ -2180,7 +2274,9 @@ function render() {
 
   renderMovimientosRecientes();
 
-  renderHistorial();
+  renderHistorial(
+    historialAbierto
+  );
 
   renderGastosFijos();
 
@@ -2251,9 +2347,6 @@ function cerrarFormGasto() {
     .dispatchEvent(
       new Event("change")
     );
-
-
-  establecerFechasHoy();
 }
 
 
@@ -2443,7 +2536,10 @@ $("formIngreso").onsubmit =
           .value
           .trim(),
 
-      fecha
+      fecha,
+
+      orden:
+        siguienteOrdenMovimiento()
 
     });
 
@@ -2454,10 +2550,10 @@ $("formIngreso").onsubmit =
     e.target.reset();
 
 
-    render();
-
-
     establecerFechasHoy();
+
+
+    render();
 
 
     $("formularioIngreso")
@@ -2603,6 +2699,10 @@ $("formGasto").onsubmit =
     }
 
 
+    const orden =
+      siguienteOrdenMovimiento();
+
+
     if (
       tipo === "gasto" &&
       $("gastoFijoSeleccion").value
@@ -2648,7 +2748,9 @@ $("formGasto").onsubmit =
         fecha,
 
         origenFijo:
-          g?.id
+          g?.id,
+
+        orden
 
       });
 
@@ -2679,7 +2781,9 @@ $("formGasto").onsubmit =
           $("tipoGasto")
             .value,
 
-        fecha
+        fecha,
+
+        orden
 
       });
 
@@ -2705,7 +2809,9 @@ $("formGasto").onsubmit =
             .value
             .trim(),
 
-        fecha
+        fecha,
+
+        orden
 
       });
 
@@ -2744,7 +2850,9 @@ $("formGasto").onsubmit =
             .value
             .trim(),
 
-        fecha
+        fecha,
+
+        orden
 
       });
     }
@@ -2759,10 +2867,10 @@ $("formGasto").onsubmit =
     cerrarFormGasto();
 
 
-    render();
-
-
     establecerFechasHoy();
+
+
+    render();
   };
 
 
@@ -2781,13 +2889,10 @@ window.eliminarMovimiento =
 
     if (!movimiento) return;
 
-    const nombre =
-      movimiento.descripcion ||
-      "este movimiento";
 
     if (
       confirm(
-        `¿Seguro que deseas eliminar "${nombre}"?`
+        `¿Seguro que deseas eliminar este movimiento?\n\n${movimiento.descripcion || "Movimiento"} · ${money(movimiento.monto)}`
       )
     ) {
 
@@ -2923,9 +3028,6 @@ $("cancelarEdicion")
     $("formularioEdicion")
       .style.display =
       "none";
-
-    $("formEdicion")
-      .reset();
   };
 
 
@@ -3054,9 +3156,6 @@ $("formEdicion").onsubmit =
     $("formularioEdicion")
       .style.display =
       "none";
-
-    $("formEdicion")
-      .reset();
   };
 
 
@@ -3701,8 +3800,29 @@ $("guardarLimitesDistribucion")
 
 
 /* =========================================================
-   FILTROS
+   FILTROS / GESTIÓN DE MOVIMIENTOS
    ========================================================= */
+
+function abrirHistorial() {
+
+  historialAbierto = true;
+
+  renderHistorial(true);
+
+  const seccion =
+    $("seccionHistorial");
+
+  if (!seccion) return;
+
+  seccion.style.display =
+    "block";
+
+  seccion.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
 
 $("filtroCategoria")
   .onchange =
@@ -3736,24 +3856,7 @@ $("filtroHasta")
 
 $("gestionarMovimientos")
   .onclick =
-  () => {
-
-    renderHistorial(
-      true
-    );
-
-
-    $("seccionHistorial")
-      .style.display =
-      "block";
-
-
-    $("seccionHistorial")
-      .scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-  };
+  abrirHistorial;
 
 
 /* =========================================================
@@ -3772,23 +3875,24 @@ function exportar(
     filtro === "semana"
   ) {
 
+    const inicio =
+      inicioSemanaISO();
+
+    const hoy =
+      hoyISO();
+
     arr =
       arr.filter(
         m => {
 
-          const diff =
-            (
-              new Date() -
-              parseFechaLocal(
-                m.fecha
-              )
-            ) /
-            86400000;
-
+          const fecha =
+            fechaISO(
+              m.fecha
+            );
 
           return (
-            diff >= 0 &&
-            diff <= 7
+            fecha >= inicio &&
+            fecha <= hoy
           );
         }
       );
@@ -3800,32 +3904,55 @@ function exportar(
   ) {
 
     const n =
-      new Date();
+      parseFechaLocal(
+        hoyISO()
+      );
 
 
     arr =
-      arr.filter(m => {
+      arr.filter(
+        m => {
 
-        const d =
-          parseFechaLocal(
-            m.fecha
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+
+          return (
+            d.getMonth() ===
+              n.getMonth() &&
+            d.getFullYear() ===
+              n.getFullYear()
           );
-
-
-        return (
-          d.getMonth() ===
-            n.getMonth() &&
-          d.getFullYear() ===
-            n.getFullYear()
-        );
-      });
+        }
+      );
   }
 
 
   arr.sort(
-    (a, b) =>
-      parseFechaLocal(b.fecha) -
-      parseFechaLocal(a.fecha)
+    (a, b) => {
+
+      const fechaA =
+        fechaISO(a.fecha);
+
+      const fechaB =
+        fechaISO(b.fecha);
+
+      if (
+        fechaA !== fechaB
+      ) {
+
+        return fechaB.localeCompare(
+          fechaA
+        );
+      }
+
+      return (
+        Number(b.orden || 0) -
+        Number(a.orden || 0)
+      );
+    }
   );
 
 
