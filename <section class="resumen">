@@ -363,62 +363,6 @@
   </small>
 </article>
 
-      <!-- =================================================
-           BALANCE
-           ================================================= -->
-
-      <section class="panel">
-
-        <div class="panel-titulo">
-
-          <div>
-
-            <span class="etiqueta">
-              BALANCE
-            </span>
-
-            <h2>
-              Resumen financiero
-            </h2>
-
-          </div>
-
-        </div>
-
-
-        <div class="balance-grid">
-
-          <div>
-            <small>Ingresos</small>
-            <strong id="balanceIngresos">
-              $0.00
-            </strong>
-          </div>
-
-          <div>
-            <small>Gastos</small>
-            <strong id="balanceGastos">
-              $0.00
-            </strong>
-          </div>
-
-          <div>
-            <small>Ahorro</small>
-            <strong id="balanceAhorro">
-              $0.00
-            </strong>
-          </div>
-
-          <div class="balance-disponible">
-            <small>Disponible</small>
-            <strong id="balanceDisponible">
-              $0.00
-            </strong>
-          </div>
-
-        </div>
-
-      </section>
 
 
       <!-- =================================================
