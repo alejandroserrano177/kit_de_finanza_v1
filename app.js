@@ -17,6 +17,30 @@ const DEFAULT_CATEGORIAS = {
   otros: ["📦", "Otros", 75]
 };
 
+const DEFAULT_GASTOS_FIJOS = [
+  {
+    id: "fijo_alquiler",
+    nombre: "Alquiler",
+    monto: 120,
+    dia: 1,
+    activo: true
+  },
+  {
+    id: "fijo_internet",
+    nombre: "Internet",
+    monto: 30,
+    dia: 5,
+    activo: true
+  },
+  {
+    id: "fijo_telefono",
+    nombre: "Teléfono",
+    monto: 23,
+    dia: 10,
+    activo: true
+  }
+];
+
 let usuario = null;
 let movimientos = [];
 let gastosFijos = [];
@@ -29,7 +53,9 @@ let distribucion = [];
    ========================================================= */
 
 async function hashPassword(password) {
-  const data = new TextEncoder().encode(password);
+
+  const data =
+    new TextEncoder().encode(password);
 
   const hash =
     await crypto.subtle.digest(
@@ -45,11 +71,14 @@ async function hashPassword(password) {
     .join("");
 }
 
+
 function leerLocal(
   key,
   fallback = null
 ) {
+
   try {
+
     const v =
       localStorage.getItem(key);
 
@@ -58,15 +87,19 @@ function leerLocal(
       : JSON.parse(v);
 
   } catch {
+
     return fallback;
   }
 }
+
 
 function escribirLocal(
   key,
   value
 ) {
+
   try {
+
     localStorage.setItem(
       key,
       JSON.stringify(value)
@@ -75,6 +108,7 @@ function escribirLocal(
     return true;
 
   } catch (error) {
+
     console.error(
       "No se pudo guardar:",
       key,
@@ -85,27 +119,35 @@ function escribirLocal(
   }
 }
 
+
 function usuarios() {
+
   return leerLocal(
     USERS_KEY,
     []
-  );
+  ) || [];
 }
+
 
 function guardarUsuarios(
   lista
 ) {
+
   return escribirLocal(
     USERS_KEY,
     lista
   );
 }
 
+
 function userKey(nombre) {
+
   return `kf_${usuario.id}_${nombre}`;
 }
 
+
 function guardarDatos() {
+
   if (!usuario) return;
 
   escribirLocal(
@@ -124,7 +166,9 @@ function guardarDatos() {
   );
 }
 
+
 function guardarMovimientos() {
+
   if (!usuario) return;
 
   escribirLocal(
@@ -133,7 +177,9 @@ function guardarMovimientos() {
   );
 }
 
+
 function guardarFijos() {
+
   if (!usuario) return;
 
   escribirLocal(
@@ -142,7 +188,9 @@ function guardarFijos() {
   );
 }
 
+
 function guardarDistribucion() {
+
   if (!usuario) return;
 
   escribirLocal(
@@ -157,7 +205,9 @@ function guardarDistribucion() {
    ========================================================= */
 
 function hoyISO() {
-  const d = new Date();
+
+  const d =
+    new Date();
 
   d.setMinutes(
     d.getMinutes() -
@@ -169,19 +219,60 @@ function hoyISO() {
     .slice(0, 10);
 }
 
+
+function parseFechaLocal(valor) {
+
+  if (!valor) {
+    return new Date();
+  }
+
+  const texto =
+    String(valor);
+
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      texto
+    )
+  ) {
+
+    const [
+      y,
+      m,
+      d
+    ] =
+      texto
+        .split("-")
+        .map(Number);
+
+    return new Date(
+      y,
+      m - 1,
+      d,
+      12,
+      0,
+      0
+    );
+  }
+
+  return new Date(valor);
+}
+
+
 function fechaTexto(v) {
+
   if (!v) return "";
 
-  const d =
-    new Date(
-      v.includes("T")
-        ? v
-        : v + "T12:00:00"
+  return parseFechaLocal(v)
+    .toLocaleDateString(
+      "es-EC"
     );
+}
 
-  return d.toLocaleDateString(
-    "es-EC"
-  );
+
+function fechaISO(valor) {
+
+  return String(valor || "")
+    .slice(0, 10);
 }
 
 
@@ -190,6 +281,7 @@ function fechaTexto(v) {
    ========================================================= */
 
 function escapeHtml(s) {
+
   return String(s ?? "").replace(
     /[&<>"']/g,
     c =>
@@ -204,49 +296,112 @@ function escapeHtml(s) {
 }
 
 
+function crearCategoriasDefault() {
+
+  return Object.entries(
+    DEFAULT_CATEGORIAS
+  ).map(
+    ([id, v]) => ({
+      id,
+      nombre: v[1],
+      icono: v[0],
+      limite: v[2],
+      activo: true
+    })
+  );
+}
+
+
+function crearFijosDefault() {
+
+  return DEFAULT_GASTOS_FIJOS.map(
+    g => ({
+      ...g,
+      creado:
+        new Date().toISOString()
+    })
+  );
+}
+
+
 /* =========================================================
    MIGRACIÓN
    ========================================================= */
 
 function migrarEstructuras() {
 
-  gastosFijos =
-    gastosFijos.map(g => ({
-      ...g,
-      activo:
-        g.activo !== false,
-      creado:
-        g.creado ||
-        new Date().toISOString()
-    }));
-
   movimientos =
-    movimientos.map(m => ({
-      ...m,
-      fecha:
-        m.fecha ||
-        new Date().toISOString(),
+    Array.isArray(movimientos)
+      ? movimientos.map(m => ({
 
-      id:
-        m.id ||
-        crypto.randomUUID()
-    }));
+          ...m,
+
+          id:
+            m.id ||
+            crypto.randomUUID(),
+
+          fecha:
+            fechaISO(m.fecha) ||
+            hoyISO(),
+
+          monto:
+            Number(m.monto) || 0
+
+        }))
+      : [];
+
+
+  gastosFijos =
+    Array.isArray(gastosFijos)
+      ? gastosFijos.map(g => ({
+
+          ...g,
+
+          id:
+            g.id ||
+            crypto.randomUUID(),
+
+          activo:
+            g.activo !== false,
+
+          creado:
+            g.creado ||
+            new Date().toISOString(),
+
+          monto:
+            Number(g.monto) || 0,
+
+          dia:
+            Number(g.dia) || 1
+
+        }))
+      : [];
+
+
+  distribucion =
+    Array.isArray(distribucion)
+      ? distribucion
+      : [];
+
 
   if (!distribucion.length) {
 
     distribucion =
-      Object.entries(
-        DEFAULT_CATEGORIAS
-      ).map(
-        ([id, v]) => ({
-          id,
-          nombre: v[1],
-          icono: v[0],
-          limite: v[2],
-          activo: true
-        })
-      );
+      crearCategoriasDefault();
   }
+
+
+  /*
+   * Si una cuenta antigua no tenía gastos fijos,
+   * recuperamos los tres iniciales.
+   */
+
+  if (!gastosFijos.length) {
+
+    gastosFijos =
+      crearFijosDefault();
+  }
+
 
   guardarDatos();
 }
@@ -260,11 +415,13 @@ function cargarDatos() {
 
   if (!usuario) return;
 
+
   movimientos =
     leerLocal(
       userKey("movimientos"),
       []
     ) || [];
+
 
   gastosFijos =
     leerLocal(
@@ -272,29 +429,23 @@ function cargarDatos() {
       []
     ) || [];
 
+
   distribucion =
     leerLocal(
       userKey("distribucion"),
       null
     );
 
-  if (!distribucion) {
+
+  if (!Array.isArray(distribucion)) {
 
     distribucion =
-      Object.entries(
-        DEFAULT_CATEGORIAS
-      ).map(
-        ([id, v]) => ({
-          id,
-          nombre: v[1],
-          icono: v[0],
-          limite: v[2],
-          activo: true
-        })
-      );
+      crearCategoriasDefault();
   }
 
+
   categorias = {};
+
 
   distribucion
     .filter(
@@ -308,7 +459,9 @@ function cargarDatos() {
         x.nombre,
         Number(x.limite) || 0
       ];
+
     });
+
 
   migrarEstructuras();
 }
@@ -324,34 +477,45 @@ function cerrarPaneles() {
     .querySelectorAll(
       ".formulario-panel"
     )
-    .forEach(x => {
-      x.style.display = "none";
-    });
+    .forEach(
+      x =>
+        x.style.display =
+          "none"
+    );
+
 
   [
-    "formularioEdicion",
-    "modalDistribucion"
+    "modalDistribucion",
+    "formGastoFijo"
   ].forEach(id => {
 
-    const el = $(id);
+    const el =
+      $(id);
 
     if (el) {
-      el.style.display = "none";
+
+      el.style.display =
+        "none";
     }
   });
 
-  const fijo =
-    $("formGastoFijo");
-
-  if (fijo) {
-    fijo.style.display = "none";
-  }
 
   try {
+
     $("formGasto").reset();
     $("formIngreso").reset();
     $("formEdicion").reset();
+    $("formGastoFijo").reset();
+
   } catch {}
+
+
+  try {
+
+    $("fijoId").value = "";
+
+  } catch {}
+
 
   try {
 
@@ -375,16 +539,22 @@ function mostrarApp() {
   cargarDatos();
 
   $("pantallaAuth")
-    .style.display = "none";
+    .style.display =
+    "none";
 
   $("app")
-    .style.display = "block";
+    .style.display =
+    "block";
+
 
   $("usuarioActual")
     .textContent =
       `Cuenta: ${usuario.nombre} · ${usuario.correo}`;
 
+
   cerrarPaneles();
+
+  establecerFechasHoy();
 
   render();
 }
@@ -405,25 +575,30 @@ function cerrarSesion() {
   usuario = null;
 
   movimientos = [];
-
   gastosFijos = [];
-
   categorias = {};
-
   distribucion = [];
+
 
   cerrarPaneles();
 
+
   $("app")
-    .style.display = "none";
+    .style.display =
+    "none";
+
 
   $("pantallaAuth")
-    .style.display = "flex";
+    .style.display =
+    "flex";
+
 
   $("formLogin").reset();
 
   $("loginMensaje")
-    .textContent = "";
+    .textContent =
+    "";
+
 
   $("tabLogin").click();
 }
@@ -439,11 +614,13 @@ function mensaje(
   error = false
 ) {
 
-  const el = $(id);
+  const el =
+    $(id);
 
   if (!el) return;
 
-  el.textContent = texto;
+  el.textContent =
+    texto;
 
   el.className =
     "auth-mensaje" +
@@ -455,36 +632,46 @@ function mensaje(
    LOGIN / REGISTRO
    ========================================================= */
 
-$("tabLogin").onclick = () => {
+$("tabLogin").onclick =
+  () => {
 
-  $("tabLogin")
-    .classList.add("activo");
+    $("tabLogin")
+      .classList.add("activo");
 
-  $("tabRegistro")
-    .classList.remove("activo");
-
-  $("formLogin")
-    .style.display = "block";
-
-  $("formRegistro")
-    .style.display = "none";
-};
+    $("tabRegistro")
+      .classList.remove("activo");
 
 
-$("tabRegistro").onclick = () => {
+    $("formLogin")
+      .style.display =
+      "block";
 
-  $("tabRegistro")
-    .classList.add("activo");
 
-  $("tabLogin")
-    .classList.remove("activo");
+    $("formRegistro")
+      .style.display =
+      "none";
+  };
 
-  $("formRegistro")
-    .style.display = "block";
 
-  $("formLogin")
-    .style.display = "none";
-};
+$("tabRegistro").onclick =
+  () => {
+
+    $("tabRegistro")
+      .classList.add("activo");
+
+    $("tabLogin")
+      .classList.remove("activo");
+
+
+    $("formRegistro")
+      .style.display =
+      "block";
+
+
+    $("formLogin")
+      .style.display =
+      "none";
+  };
 
 
 /* =========================================================
@@ -496,10 +683,12 @@ $("formRegistro").onsubmit =
 
     e.preventDefault();
 
+
     const nombre =
       $("registroNombre")
         .value
         .trim();
+
 
     const correo =
       $("registroCorreo")
@@ -507,13 +696,26 @@ $("formRegistro").onsubmit =
         .trim()
         .toLowerCase();
 
+
     const p1 =
       $("registroPassword")
         .value;
 
+
     const p2 =
       $("registroPassword2")
         .value;
+
+
+    if (!nombre) {
+
+      return mensaje(
+        "registroMensaje",
+        "Escribe tu nombre.",
+        true
+      );
+    }
+
 
     if (p1 !== p2) {
 
@@ -524,6 +726,7 @@ $("formRegistro").onsubmit =
       );
     }
 
+
     if (p1.length < 6) {
 
       return mensaje(
@@ -533,8 +736,10 @@ $("formRegistro").onsubmit =
       );
     }
 
+
     const lista =
       usuarios();
+
 
     if (
       lista.some(
@@ -550,6 +755,7 @@ $("formRegistro").onsubmit =
       );
     }
 
+
     const nuevo = {
 
       id:
@@ -564,9 +770,12 @@ $("formRegistro").onsubmit =
 
       creado:
         new Date().toISOString()
+
     };
 
+
     lista.push(nuevo);
+
 
     if (
       !guardarUsuarios(lista)
@@ -579,12 +788,16 @@ $("formRegistro").onsubmit =
       );
     }
 
-    usuario = nuevo;
+
+    usuario =
+      nuevo;
+
 
     localStorage.setItem(
       SESSION_KEY,
       nuevo.id
     );
+
 
     mostrarApp();
   };
@@ -599,16 +812,24 @@ $("formLogin").onsubmit =
 
     e.preventDefault();
 
+
     const correo =
       $("loginCorreo")
         .value
         .trim()
         .toLowerCase();
 
+
+    const password =
+      $("loginPassword")
+        .value;
+
+
     const hash =
       await hashPassword(
-        $("loginPassword").value
+        password
       );
+
 
     const u =
       usuarios().find(
@@ -616,6 +837,7 @@ $("formLogin").onsubmit =
           x.correo === correo &&
           x.passwordHash === hash
       );
+
 
     if (!u) {
 
@@ -626,12 +848,16 @@ $("formLogin").onsubmit =
       );
     }
 
-    usuario = u;
+
+    usuario =
+      u;
+
 
     localStorage.setItem(
       SESSION_KEY,
       u.id
     );
+
 
     mostrarApp();
   };
@@ -656,9 +882,10 @@ function obtenerTotales() {
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto),
+          s + Number(m.monto || 0),
         0
       );
+
 
   const gas =
     movimientos
@@ -668,9 +895,10 @@ function obtenerTotales() {
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto),
+          s + Number(m.monto || 0),
         0
       );
+
 
   const aportes =
     movimientos
@@ -680,9 +908,10 @@ function obtenerTotales() {
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto),
+          s + Number(m.monto || 0),
         0
       );
+
 
   const retiros =
     movimientos
@@ -692,9 +921,10 @@ function obtenerTotales() {
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto),
+          s + Number(m.monto || 0),
         0
       );
+
 
   return {
 
@@ -703,7 +933,10 @@ function obtenerTotales() {
     gas,
 
     ahorro:
-      aportes - retiros,
+      Math.max(
+        aportes - retiros,
+        0
+      ),
 
     disponible:
       ing - gas
@@ -725,37 +958,46 @@ function renderResumen() {
   } =
     obtenerTotales();
 
+
   $("totalIngresos")
     .textContent =
-      money(ing);
+    money(ing);
+
 
   $("totalGastos")
     .textContent =
-      money(gas);
+    money(gas);
+
 
   $("totalBalance")
     .textContent =
-      money(disponible);
+    money(disponible);
+
 
   $("totalAhorro")
     .textContent =
-      money(ahorro);
+    money(ahorro);
+
 
   $("totalDisponible")
     .textContent =
-      money(disponible);
+    money(disponible);
+
 
   $("totalDisponible")
     .style.color =
-      disponible < 0
-        ? "var(--rojo)"
-        : "var(--principal)";
-
-  $("totalBalance").style.color =
     disponible < 0
-      ? "var(--rojo)"
-      : "var(--principal)";
+      ? "var(--rojo-alerta)"
+      : "var(--celeste-accent)";
+
+
+  $("totalBalance")
+    .style.color =
+    disponible < 0
+      ? "var(--rojo-alerta)"
+      : "var(--texto-principal)";
 }
+
 
 /* =========================================================
    CATEGORÍAS
@@ -766,9 +1008,13 @@ function renderCategorias() {
   const grid =
     $("gridCategorias");
 
+
   if (!grid) return;
 
-  grid.innerHTML = "";
+
+  grid.innerHTML =
+    "";
+
 
   distribucion
     .filter(
@@ -786,12 +1032,14 @@ function renderCategorias() {
           )
           .reduce(
             (s, m) =>
-              s + Number(m.monto),
+              s + Number(m.monto || 0),
             0
           );
 
+
       const lim =
         Number(c.limite) || 0;
+
 
       const pct =
         lim
@@ -801,6 +1049,7 @@ function renderCategorias() {
             )
           : 0;
 
+
       const ms =
         movimientos
           .filter(
@@ -808,16 +1057,23 @@ function renderCategorias() {
               m.tipo === "gasto" &&
               m.categoria === c.id
           )
-          .slice(-3)
-          .reverse();
+          .sort(
+            (a, b) =>
+              parseFechaLocal(b.fecha) -
+              parseFechaLocal(a.fecha)
+          )
+          .slice(0, 3);
+
 
       const div =
         document.createElement(
           "article"
         );
 
+
       div.className =
         "categoria-card";
+
 
       div.innerHTML = `
 
@@ -853,40 +1109,51 @@ function renderCategorias() {
         </div>
 
         <small>
-          ${Math.round(pct)}% utilizado
+          ${
+            lim
+              ? `${Math.round(pct)}% utilizado`
+              : "Sin límite definido"
+          }
         </small>
 
         <div class="movimientos">
 
           ${
-            ms
-              .map(
-                m => `
+            ms.length
+              ? ms
+                  .map(
+                    m => `
 
-                  <div class="movimiento">
+                      <div class="movimiento">
 
-                    <span>
-                      ${escapeHtml(
-                        m.descripcion ||
-                        c.nombre
-                      )}
-                    </span>
+                        <span>
+                          ${escapeHtml(
+                            m.descripcion ||
+                            c.nombre
+                          )}
+                        </span>
 
-                    <span>
-                      ${money(
-                        m.monto
-                      )}
-                    </span>
+                        <span>
+                          ${money(
+                            m.monto
+                          )}
+                        </span>
 
-                  </div>
+                      </div>
 
+                    `
+                  )
+                  .join("")
+              : `
+                  <small>
+                    Sin movimientos
+                  </small>
                 `
-              )
-              .join("")
           }
 
         </div>
       `;
+
 
       grid.appendChild(div);
     });
@@ -918,8 +1185,10 @@ function getFixedProgress(
   const y =
     refDate.getFullYear();
 
+
   const m =
     refDate.getMonth();
+
 
   const pagos =
     movimientos
@@ -931,7 +1200,10 @@ function getFixedProgress(
       .filter(x => {
 
         const d =
-          new Date(x.fecha);
+          parseFechaLocal(
+            x.fecha
+          );
+
 
         return (
           d.getFullYear() === y &&
@@ -939,21 +1211,25 @@ function getFixedProgress(
         );
       });
 
+
   const pagado =
     pagos.reduce(
       (s, x) =>
-        s + Number(x.monto),
+        s + Number(x.monto || 0),
       0
     );
 
+
   const objetivo =
     Number(g.monto) || 0;
+
 
   const pendiente =
     Math.max(
       objetivo - pagado,
       0
     );
+
 
   const pct =
     objetivo
@@ -965,46 +1241,81 @@ function getFixedProgress(
         )
       : 0;
 
+
+  const diaVencimiento =
+    Math.min(
+      Math.max(
+        Number(g.dia) || 1,
+        1
+      ),
+      daysInMonth(
+        y,
+        m
+      )
+    );
+
+
   const venc =
     new Date(
       y,
       m,
-      Math.min(
-        Number(g.dia) || 1,
-        daysInMonth(y, m)
-      ),
+      diaVencimiento,
       23,
       59,
       59
     );
 
+
   const completa =
     pagado >= objetivo &&
     objetivo > 0;
 
-  let estado =
-    completa
-      ? "pagado"
-      : new Date() > venc
-        ? "vencido"
-        : "pendiente";
 
-  if (
-    pagado > 0 &&
-    !completa &&
+  let estado;
+
+
+  if (completa) {
+
+    estado =
+      "pagado";
+
+  } else if (
     new Date() > venc
   ) {
+
     estado =
-      "parcial-atrasado";
+      pagado > 0
+        ? "parcial-atrasado"
+        : "vencido";
+
+  } else if (
+    pagado > 0
+  ) {
+
+    estado =
+      "parcial";
+
+  } else {
+
+    estado =
+      "pendiente";
   }
 
+
   return {
+
     pagos,
+
     pagado,
+
     objetivo,
+
     pendiente,
+
     pct,
+
     venc,
+
     estado
   };
 }
@@ -1016,19 +1327,24 @@ function estadoFechaPago(
 ) {
 
   const p =
-    new Date(
-      fecha +
-      "T12:00:00"
+    parseFechaLocal(
+      fecha
     );
+
 
   const v =
     new Date(venc);
 
+
   const diff =
     Math.round(
-      (p - v) /
+      (
+        p -
+        v
+      ) /
       86400000
     );
+
 
   if (
     Math.abs(diff) <= 10
@@ -1039,14 +1355,81 @@ function estadoFechaPago(
       return `Pagado ${Math.abs(diff)} día${Math.abs(diff) !== 1 ? "s" : ""} antes`;
     }
 
+
     if (diff === 0) {
+
       return "Pagado a tiempo";
     }
+
 
     return `Pagado ${diff} día${diff !== 1 ? "s" : ""} tarde`;
   }
 
-  return fechaTexto(fecha);
+
+  return fechaTexto(
+    fecha
+  );
+}
+
+
+function obtenerClaseFijo(
+  estado
+) {
+
+  if (
+    estado === "pagado"
+  ) {
+
+    return "pagado";
+  }
+
+
+  if (
+    estado === "vencido" ||
+    estado === "parcial-atrasado"
+  ) {
+
+    return "atrasado";
+  }
+
+
+  if (
+    estado === "parcial"
+  ) {
+
+    return "parcial";
+  }
+
+
+  return "pendiente";
+}
+
+
+function obtenerTextoEstadoFijo(
+  estado
+) {
+
+  const estados = {
+
+    pagado:
+      "✓ Pagado",
+
+    pendiente:
+      "○ Pendiente",
+
+    parcial:
+      "◐ Pago parcial",
+
+    vencido:
+      "⚠ Vencido",
+
+    "parcial-atrasado":
+      "⚠ Parcial atrasado"
+  };
+
+
+  return estados[estado] ||
+    "Pendiente";
 }
 
 
@@ -1055,13 +1438,16 @@ function renderGastosFijos() {
   const box =
     $("listaGastosFijos");
 
+
   if (!box) return;
+
 
   const activos =
     gastosFijos.filter(
       g =>
         g.activo !== false
     );
+
 
   if (!activos.length) {
 
@@ -1080,6 +1466,7 @@ function renderGastosFijos() {
     return;
   }
 
+
   box.innerHTML =
     activos
       .map(g => {
@@ -1087,17 +1474,12 @@ function renderGastosFijos() {
         const p =
           getFixedProgress(g);
 
+
         const cl =
-          p.estado === "pagado"
-            ? "pagado"
-            : (
-                p.estado.includes(
-                  "atrasado"
-                ) ||
-                p.estado === "vencido"
-              )
-                ? "atrasado"
-                : "";
+          obtenerClaseFijo(
+            p.estado
+          );
+
 
         const pagosInfo =
           p.pagos.length
@@ -1106,10 +1488,10 @@ function renderGastosFijos() {
                 .slice()
                 .sort(
                   (a, b) =>
-                    new Date(
+                    parseFechaLocal(
                       b.fecha
                     ) -
-                    new Date(
+                    parseFechaLocal(
                       a.fecha
                     )
                 )
@@ -1150,6 +1532,7 @@ function renderGastosFijos() {
 
               `;
 
+
         return `
 
           <div
@@ -1164,15 +1547,15 @@ function renderGastosFijos() {
                 )}
               </strong>
 
+              <small class="fijo-estado">
+                ${obtenerTextoEstadoFijo(
+                  p.estado
+                )}
+              </small>
+
               <small>
                 Vence día ${g.dia}
                 · ${money(g.monto)}
-                · ${
-                  p.pagado >=
-                  p.objetivo
-                    ? "Pagado"
-                    : "Pendiente"
-                }
               </small>
 
               <div class="barra">
@@ -1206,6 +1589,7 @@ function renderGastosFijos() {
               <button
                 class="boton-secundario boton-pequeno"
                 onclick="abrirPagoFijo('${g.id}')"
+                type="button"
               >
                 Registrar pago
               </button>
@@ -1213,6 +1597,7 @@ function renderGastosFijos() {
               <button
                 class="boton-secundario boton-pequeno"
                 onclick="editarFijo('${g.id}')"
+                type="button"
               >
                 Editar
               </button>
@@ -1220,6 +1605,8 @@ function renderGastosFijos() {
               <button
                 class="boton-eliminar"
                 onclick="desactivarFijo('${g.id}')"
+                type="button"
+                title="Desactivar gasto fijo"
               >
                 ✕
               </button>
@@ -1243,6 +1630,7 @@ function actualizarSelects() {
   const cat =
     $("categoria");
 
+
   if (cat) {
 
     cat.innerHTML =
@@ -1261,7 +1649,7 @@ function actualizarSelects() {
           c => `
 
             <option
-              value="${c.id}"
+              value="${escapeHtml(c.id)}"
             >
               ${escapeHtml(
                 c.icono || "📦"
@@ -1276,8 +1664,10 @@ function actualizarSelects() {
         .join("");
   }
 
+
   const filtro =
     $("filtroCategoria");
+
 
   if (filtro) {
 
@@ -1297,7 +1687,7 @@ function actualizarSelects() {
           c => `
 
             <option
-              value="${c.id}"
+              value="${escapeHtml(c.id)}"
             >
               ${escapeHtml(
                 c.icono || "📦"
@@ -1324,8 +1714,10 @@ function actualizarSelects() {
       `;
   }
 
+
   const fijo =
     $("gastoFijoSeleccion");
+
 
   if (fijo) {
 
@@ -1345,7 +1737,7 @@ function actualizarSelects() {
           g => `
 
             <option
-              value="${g.id}"
+              value="${escapeHtml(g.id)}"
             >
               ${escapeHtml(
                 g.nombre
@@ -1370,17 +1762,20 @@ function renderMovimientosRecientes() {
   const recientes =
     $("movimientosRecientes");
 
+
   if (!recientes) return;
+
 
   const ultimos =
     movimientos
       .slice()
       .sort(
         (a, b) =>
-          new Date(b.fecha) -
-          new Date(a.fecha)
+          parseFechaLocal(b.fecha) -
+          parseFechaLocal(a.fecha)
       )
       .slice(0, 3);
+
 
   recientes.innerHTML =
     ultimos.length
@@ -1403,8 +1798,10 @@ function renderMovimientosRecientes() {
 
         `;
 
+
   const contador =
     $("contadorMovimientosRecientes");
+
 
   if (contador) {
 
@@ -1427,28 +1824,34 @@ function renderHistorial(
       ?.value ||
     "todas";
 
+
   const tipo =
     $("filtroTipo")
       ?.value ||
     "todos";
+
 
   const periodo =
     $("filtroPeriodo")
       ?.value ||
     "todos";
 
+
   const desde =
     $("filtroDesde")
       ?.value ||
     "";
+
 
   const hasta =
     $("filtroHasta")
       ?.value ||
     "";
 
+
   let arr =
     movimientos.slice();
+
 
   if (cat !== "todas") {
 
@@ -1460,6 +1863,7 @@ function renderHistorial(
       );
   }
 
+
   if (tipo !== "todos") {
 
     arr =
@@ -1469,8 +1873,10 @@ function renderHistorial(
       );
   }
 
+
   const now =
     new Date();
+
 
   if (
     periodo === "semana"
@@ -1480,20 +1886,26 @@ function renderHistorial(
       arr.filter(m => {
 
         const d =
-          new Date(m.fecha);
+          parseFechaLocal(
+            m.fecha
+          );
+
 
         const diff =
           (
-            now - d
+            now -
+            d
           ) /
           86400000;
 
+
         return (
           diff >= 0 &&
-          diff < 7
+          diff <= 7
         );
       });
   }
+
 
   if (
     periodo === "mes"
@@ -1503,7 +1915,10 @@ function renderHistorial(
       arr.filter(m => {
 
         const d =
-          new Date(m.fecha);
+          parseFechaLocal(
+            m.fecha
+          );
+
 
         return (
           d.getMonth() ===
@@ -1514,6 +1929,7 @@ function renderHistorial(
       });
   }
 
+
   if (
     periodo === "dia"
   ) {
@@ -1521,55 +1937,58 @@ function renderHistorial(
     arr =
       arr.filter(
         m =>
-          m.fecha.slice(
-            0,
-            10
-          ) === hoyISO()
+          fechaISO(m.fecha) ===
+          hoyISO()
       );
   }
+
 
   if (desde) {
 
     arr =
       arr.filter(
         m =>
-          m.fecha.slice(
-            0,
-            10
-          ) >= desde
+          fechaISO(m.fecha) >=
+          desde
       );
   }
+
 
   if (hasta) {
 
     arr =
       arr.filter(
         m =>
-          m.fecha.slice(
-            0,
-            10
-          ) <= hasta
+          fechaISO(m.fecha) <=
+          hasta
       );
   }
 
+
   arr.sort(
     (a, b) =>
-      new Date(b.fecha) -
-      new Date(a.fecha)
+      parseFechaLocal(b.fecha) -
+      parseFechaLocal(a.fecha)
   );
+
 
   const listaCompleta =
     arr.slice();
 
+
   if (!completo) {
+
     arr =
       arr.slice(0, 3);
   }
 
+
   const box =
     $("historialMovimientos");
 
+
   if (!box) return;
+
 
   box.innerHTML =
     arr.length
@@ -1592,8 +2011,10 @@ function renderHistorial(
 
         `;
 
+
   const contador =
     $("contadorHistorial");
+
 
   if (contador) {
 
@@ -1612,12 +2033,15 @@ function renderMovimiento(m) {
   const esIngreso =
     m.tipo === "ingreso";
 
+
   const esAhorro =
     m.tipo === "ahorro";
+
 
   const esRetiro =
     m.tipo ===
     "retiro_ahorro";
+
 
   const cat =
     distribucion.find(
@@ -1625,6 +2049,7 @@ function renderMovimiento(m) {
         c.id ===
         m.categoria
     );
+
 
   const icon =
     esIngreso
@@ -1636,6 +2061,7 @@ function renderMovimiento(m) {
           : cat?.icono ||
             "💸";
 
+
   const nombre =
     esIngreso
       ? "Ingreso"
@@ -1646,12 +2072,24 @@ function renderMovimiento(m) {
           : cat?.nombre ||
             "Gasto";
 
+
   const signo =
     esIngreso
       ? "+"
       : esRetiro
         ? "↩"
         : "-";
+
+
+  const claseValor =
+    esIngreso
+      ? "ingreso"
+      : esAhorro
+        ? "ahorro"
+        : esRetiro
+          ? "retiro"
+          : "gasto";
+
 
   return `
 
@@ -1699,13 +2137,7 @@ function renderMovimiento(m) {
       <div class="movimiento-valor">
 
         <strong
-          class="${
-            esIngreso
-              ? "ingreso"
-              : esRetiro
-                ? "retiro"
-                : "gasto"
-          }"
+          class="${claseValor}"
         >
           ${signo}${money(
             m.monto
@@ -1717,6 +2149,7 @@ function renderMovimiento(m) {
         <button
           class="boton-secundario boton-pequeno"
           onclick="editarMovimiento('${m.id}')"
+          type="button"
         >
           Editar
         </button>
@@ -1724,6 +2157,8 @@ function renderMovimiento(m) {
         <button
           class="boton-eliminar"
           onclick="eliminarMovimiento('${m.id}')"
+          type="button"
+          title="Eliminar movimiento"
         >
           ✕
         </button>
@@ -1774,12 +2209,20 @@ function mostrar(id) {
           "none"
     );
 
-  const el = $(id);
+
+  const el =
+    $(id);
+
 
   if (!el) return;
 
+
   el.style.display =
     "block";
+
+
+  establecerFechasHoy();
+
 
   el.scrollIntoView({
     behavior: "smooth",
@@ -1792,21 +2235,50 @@ function cerrarFormGasto() {
 
   $("formularioGasto")
     .style.display =
-      "none";
+    "none";
+
 
   $("formGasto")
     .reset();
 
+
   $("gastoFijoSeleccion")
-    .value = "";
+    .value =
+    "";
+
 
   $("tipoSalida")
-    .value = "gasto";
+    .value =
+    "gasto";
+
 
   $("tipoSalida")
     .dispatchEvent(
       new Event("change")
     );
+}
+
+
+function establecerFechasHoy() {
+
+  const hoy =
+    hoyISO();
+
+
+  if ($("fechaIngreso")) {
+
+    $("fechaIngreso")
+      .value =
+      hoy;
+  }
+
+
+  if ($("fechaGasto")) {
+
+    $("fechaGasto")
+      .value =
+      hoy;
+  }
 }
 
 
@@ -1822,10 +2294,13 @@ function activarTarjeta(
   const el =
     $(id);
 
+
   if (!el) return;
+
 
   el.onclick =
     accion;
+
 
   el.onkeydown =
     e => {
@@ -1857,12 +2332,15 @@ activarTarjeta(
   () => {
 
     $("tipoSalida")
-      .value = "gasto";
+      .value =
+      "gasto";
+
 
     $("tipoSalida")
       .dispatchEvent(
         new Event("change")
       );
+
 
     mostrar(
       "formularioGasto"
@@ -1876,12 +2354,15 @@ activarTarjeta(
   () => {
 
     $("tipoSalida")
-      .value = "ahorro";
+      .value =
+      "ahorro";
+
 
     $("tipoSalida")
       .dispatchEvent(
         new Event("change")
       );
+
 
     mostrar(
       "formularioGasto"
@@ -1900,7 +2381,14 @@ $("cerrarFormularioIngreso")
 
     $("formularioIngreso")
       .style.display =
-        "none";
+      "none";
+
+
+    $("formIngreso")
+      .reset();
+
+
+    establecerFechasHoy();
   };
 
 
@@ -1909,9 +2397,11 @@ $("formIngreso").onsubmit =
 
     e.preventDefault();
 
+
     const tipo =
       $("tipoIngreso")
         .value;
+
 
     const monto =
       Number(
@@ -1919,10 +2409,12 @@ $("formIngreso").onsubmit =
           .value
       );
 
+
     const fecha =
       $("fechaIngreso")
         .value ||
       hoyISO();
+
 
     if (
       !tipo ||
@@ -1930,9 +2422,10 @@ $("formIngreso").onsubmit =
     ) {
 
       return alert(
-        "Completa el tipo, monto y fecha."
+        "Completa correctamente el tipo y el monto."
       );
     }
+
 
     movimientos.push({
 
@@ -1953,17 +2446,25 @@ $("formIngreso").onsubmit =
           .trim(),
 
       fecha
+
     });
+
 
     guardarMovimientos();
 
+
     e.target.reset();
+
 
     render();
 
+
+    establecerFechasHoy();
+
+
     $("formularioIngreso")
       .style.display =
-        "none";
+      "none";
   };
 
 
@@ -1973,7 +2474,7 @@ $("formIngreso").onsubmit =
 
 $("cerrarFormularioGasto")
   .onclick =
-    cerrarFormGasto;
+  cerrarFormGasto;
 
 
 $("tipoSalida").onchange =
@@ -1983,54 +2484,64 @@ $("tipoSalida").onchange =
       $("tipoSalida")
         .value;
 
+
     const normal =
       v === "gasto";
+
 
     const ahorro =
       v === "ahorro";
 
+
     const retiro =
       v === "retiro_ahorro";
 
+
     $("camposGasto")
       .style.display =
-        normal
-          ? "block"
-          : "none";
+      normal
+        ? "block"
+        : "none";
+
 
     $("campoTipoGasto")
       .style.display =
-        normal
-          ? "block"
-          : "none";
+      normal
+        ? "block"
+        : "none";
+
 
     $("campoGastoFijo")
       .style.display =
-        normal
-          ? "block"
-          : "none";
+      normal
+        ? "block"
+        : "none";
+
 
     $("campoRetiroAhorro")
       .style.display =
-        retiro
-          ? "block"
-          : "none";
+      retiro
+        ? "block"
+        : "none";
+
 
     $("descripcion")
       .placeholder =
-        ahorro
-          ? "Ej. Fondo de emergencia"
-          : retiro
-            ? "Ej. Proyecto o emergencia"
-            : "¿En qué gastaste?";
+      ahorro
+        ? "Ej. Fondo de emergencia"
+        : retiro
+          ? "Ej. Proyecto o emergencia"
+          : "¿En qué gastaste?";
+
 
     $("guardarSalida")
       .textContent =
-        ahorro
-          ? "Guardar aporte a ahorro"
-          : retiro
-            ? "Registrar retiro de ahorro"
-            : "Guardar gasto";
+      ahorro
+        ? "Guardar aporte a ahorro"
+        : retiro
+          ? "Registrar retiro de ahorro"
+          : "Guardar gasto";
+
 
     if (
       ahorro ||
@@ -2038,10 +2549,13 @@ $("tipoSalida").onchange =
     ) {
 
       $("categoria")
-        .value = "";
+        .value =
+        "";
+
 
       $("gastoFijoSeleccion")
-        .value = "";
+        .value =
+        "";
     }
   };
 
@@ -2051,28 +2565,33 @@ $("formGasto").onsubmit =
 
     e.preventDefault();
 
+
     const tipo =
       $("tipoSalida")
         .value;
+
 
     const monto =
       Number(
         $("monto").value
       );
 
+
     const fecha =
       $("fechaGasto")
         .value ||
       hoyISO();
+
 
     if (
       monto <= 0
     ) {
 
       return alert(
-        "Completa el monto."
+        "Completa correctamente el monto."
       );
     }
+
 
     if (
       tipo === "gasto" &&
@@ -2084,6 +2603,7 @@ $("formGasto").onsubmit =
         "Selecciona una categoría."
       );
     }
+
 
     if (
       tipo === "gasto" &&
@@ -2098,12 +2618,14 @@ $("formGasto").onsubmit =
               .value
         );
 
+
       const descripcion =
         $("descripcion")
           .value
           .trim() ||
         g?.nombre ||
         "Gasto fijo";
+
 
       movimientos.push({
 
@@ -2123,13 +2645,13 @@ $("formGasto").onsubmit =
         descripcion,
 
         tipoGasto:
-          $("tipoGasto")
-            .value,
+          "fijo",
 
         fecha,
 
         origenFijo:
           g?.id
+
       });
 
     } else if (
@@ -2160,6 +2682,7 @@ $("formGasto").onsubmit =
             .value,
 
         fecha
+
       });
 
     } else if (
@@ -2185,6 +2708,7 @@ $("formGasto").onsubmit =
             .trim(),
 
         fecha
+
       });
 
     } else {
@@ -2192,6 +2716,7 @@ $("formGasto").onsubmit =
       const saldo =
         obtenerTotales()
           .ahorro;
+
 
       if (
         monto > saldo
@@ -2201,6 +2726,7 @@ $("formGasto").onsubmit =
           `No puedes retirar ${money(monto)} porque tu ahorro disponible es ${money(saldo)}.`
         );
       }
+
 
       movimientos.push({
 
@@ -2221,16 +2747,24 @@ $("formGasto").onsubmit =
             .trim(),
 
         fecha
+
       });
     }
 
+
     guardarMovimientos();
+
 
     e.target.reset();
 
+
     cerrarFormGasto();
 
+
     render();
+
+
+    establecerFechasHoy();
   };
 
 
@@ -2253,6 +2787,7 @@ window.eliminarMovimiento =
             m.id !== id
         );
 
+
       guardarMovimientos();
 
       render();
@@ -2269,28 +2804,37 @@ window.editarMovimiento =
           x.id === id
       );
 
+
     if (!m) return;
 
+
     $("editarId")
-      .value = m.id;
+      .value =
+      m.id;
+
 
     $("editarTipo")
-      .value = m.tipo;
+      .value =
+      m.tipo;
+
 
     $("editarMonto")
-      .value = m.monto;
+      .value =
+      m.monto;
+
 
     $("editarFecha")
       .value =
-        m.fecha.slice(
-          0,
-          10
-        );
+      fechaISO(
+        m.fecha
+      );
+
 
     $("editarDescripcion")
       .value =
-        m.descripcion ||
-        "";
+      m.descripcion ||
+      "";
+
 
     $("editarCategoria")
       .innerHTML =
@@ -2304,10 +2848,10 @@ window.editarMovimiento =
           c => `
 
             <option
-              value="${c.id}"
+              value="${escapeHtml(c.id)}"
             >
               ${escapeHtml(
-                c.icono
+                c.icono || "📦"
               )}
               ${escapeHtml(
                 c.nombre
@@ -2330,18 +2874,35 @@ window.editarMovimiento =
 
       `;
 
+
     $("editarCategoria")
       .value =
-        m.categoria;
+      m.categoria;
+
 
     $("formularioEdicion")
       .style.display =
-        "block";
+      "block";
+
 
     $("formularioEdicion")
       .scrollIntoView({
-        behavior: "smooth"
+        behavior: "smooth",
+        block: "start"
       });
+  };
+
+
+$("cerrarEdicion")
+  .onclick =
+  () => {
+
+    $("formularioEdicion")
+      .style.display =
+      "none";
+
+    $("formEdicion")
+      .reset();
   };
 
 
@@ -2351,7 +2912,7 @@ $("cancelarEdicion")
 
     $("formularioEdicion")
       .style.display =
-        "none";
+      "none";
   };
 
 
@@ -2359,6 +2920,7 @@ $("formEdicion").onsubmit =
   e => {
 
     e.preventDefault();
+
 
     const m =
       movimientos.find(
@@ -2368,39 +2930,122 @@ $("formEdicion").onsubmit =
             .value
       );
 
+
     if (!m) return;
 
-    m.tipo =
+
+    const nuevoTipo =
       $("editarTipo")
         .value;
 
-    m.monto =
+
+    const nuevoMonto =
       Number(
         $("editarMonto")
           .value
       );
 
-    m.fecha =
+
+    const nuevaFecha =
       $("editarFecha")
         .value ||
       hoyISO();
+
+
+    const nuevaCategoria =
+      $("editarCategoria")
+        .value;
+
+
+    if (
+      nuevoMonto <= 0
+    ) {
+
+      return alert(
+        "El monto debe ser mayor que cero."
+      );
+    }
+
+
+    /*
+     * Si se está editando un retiro,
+     * comprobamos que no deje el ahorro negativo.
+     */
+
+    if (
+      nuevoTipo ===
+      "retiro_ahorro"
+    ) {
+
+      const ahorroActual =
+        obtenerTotales()
+          .ahorro;
+
+
+      const retiroAnterior =
+        m.tipo ===
+        "retiro_ahorro"
+          ? Number(m.monto)
+          : 0;
+
+
+      const ahorroDisponible =
+        ahorroActual +
+        retiroAnterior;
+
+
+      if (
+        nuevoMonto >
+        ahorroDisponible
+      ) {
+
+        return alert(
+          `No puedes guardar este retiro. Tu ahorro disponible sería insuficiente.`
+        );
+      }
+    }
+
+
+    m.tipo =
+      nuevoTipo;
+
+
+    m.monto =
+      nuevoMonto;
+
+
+    m.fecha =
+      nuevaFecha;
+
 
     m.descripcion =
       $("editarDescripcion")
         .value
         .trim();
 
+
     m.categoria =
-      $("editarCategoria")
-        .value;
+      nuevaCategoria;
+
+
+    if (
+      nuevoTipo !== "gasto"
+    ) {
+
+      delete m.origenFijo;
+      delete m.tipoGasto;
+    }
+
 
     guardarMovimientos();
 
+
     render();
+
 
     $("formularioEdicion")
       .style.display =
-        "none";
+      "none";
   };
 
 
@@ -2414,9 +3059,11 @@ $("mostrarFormFijo")
 
     resetFijoForm();
 
+
     $("formGastoFijo")
       .style.display =
-        "block";
+      "block";
+
 
     $("fijoNombre")
       .focus();
@@ -2427,15 +3074,12 @@ $("cancelarFijo")
   .onclick =
   () => {
 
-    $("formGastoFijo")
-      .reset();
+    resetFijoForm();
 
-    $("fijoId")
-      .value = "";
 
     $("formGastoFijo")
       .style.display =
-        "none";
+      "none";
   };
 
 
@@ -2444,8 +3088,10 @@ function resetFijoForm() {
   $("formGastoFijo")
     .reset();
 
+
   $("fijoId")
-    .value = "";
+    .value =
+    "";
 }
 
 
@@ -2458,26 +3104,44 @@ window.editarFijo =
           x.id === id
       );
 
+
     if (!g) return;
 
+
     $("fijoId")
-      .value = g.id;
+      .value =
+      g.id;
+
 
     $("fijoNombre")
-      .value = g.nombre;
+      .value =
+      g.nombre;
+
 
     $("fijoMonto")
-      .value = g.monto;
+      .value =
+      g.monto;
+
 
     $("fijoDia")
-      .value = g.dia;
+      .value =
+      g.dia;
+
 
     $("formGastoFijo")
       .style.display =
-        "block";
+      "block";
+
 
     $("fijoNombre")
       .focus();
+
+
+    $("formGastoFijo")
+      .scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
   };
 
 
@@ -2486,14 +3150,17 @@ $("formGastoFijo").onsubmit =
 
     e.preventDefault();
 
+
     const id =
       $("fijoId")
         .value;
+
 
     const nombre =
       $("fijoNombre")
         .value
         .trim();
+
 
     const monto =
       Number(
@@ -2501,11 +3168,13 @@ $("formGastoFijo").onsubmit =
           .value
       );
 
+
     const dia =
       Number(
         $("fijoDia")
           .value
       );
+
 
     if (
       !nombre ||
@@ -2519,6 +3188,7 @@ $("formGastoFijo").onsubmit =
       );
     }
 
+
     if (id) {
 
       const g =
@@ -2526,6 +3196,7 @@ $("formGastoFijo").onsubmit =
           x =>
             x.id === id
         );
+
 
       if (g) {
 
@@ -2564,13 +3235,17 @@ $("formGastoFijo").onsubmit =
       });
     }
 
+
     guardarFijos();
+
 
     resetFijoForm();
 
+
     $("formGastoFijo")
       .style.display =
-        "none";
+      "none";
+
 
     render();
   };
@@ -2585,6 +3260,7 @@ window.desactivarFijo =
           x.id === id
       );
 
+
     if (
       g &&
       confirm(
@@ -2594,6 +3270,7 @@ window.desactivarFijo =
 
       g.activo =
         false;
+
 
       guardarFijos();
 
@@ -2607,17 +3284,22 @@ window.abrirPagoFijo =
 
     $("tipoSalida")
       .value =
-        "gasto";
+      "gasto";
+
 
     $("tipoSalida")
       .dispatchEvent(
         new Event("change")
       );
 
+
     actualizarSelects();
 
+
     $("gastoFijoSeleccion")
-      .value = id;
+      .value =
+      id;
+
 
     const g =
       gastosFijos.find(
@@ -2625,25 +3307,32 @@ window.abrirPagoFijo =
           x.id === id
       );
 
+
     if (g) {
+
+      const vivienda =
+        distribucion.find(
+          c =>
+            c.nombre
+              .toLowerCase()
+              .includes(
+                "vivienda"
+              )
+        );
+
 
       $("categoria")
         .value =
-          distribucion.find(
-            c =>
-              c.nombre
-                .toLowerCase()
-                .includes(
-                  "vivienda"
-                )
-          )?.id ||
-          distribucion[0]?.id ||
-          "otros";
+        vivienda?.id ||
+        distribucion[0]?.id ||
+        "otros";
+
 
       $("descripcion")
         .value =
-          g.nombre;
+        g.nombre;
     }
+
 
     mostrar(
       "formularioGasto"
@@ -2661,9 +3350,10 @@ $("mostrarDistribucion")
 
     renderEditorDistribucion();
 
+
     $("modalDistribucion")
       .style.display =
-        "flex";
+      "flex";
   };
 
 
@@ -2673,8 +3363,26 @@ $("cerrarDistribucion")
 
     $("modalDistribucion")
       .style.display =
-        "none";
+      "none";
   };
+
+
+$("modalDistribucion")
+  .addEventListener(
+    "click",
+    e => {
+
+      if (
+        e.target ===
+        $("modalDistribucion")
+      ) {
+
+        $("modalDistribucion")
+          .style.display =
+          "none";
+      }
+    }
+  );
 
 
 function renderEditorDistribucion() {
@@ -2682,7 +3390,9 @@ function renderEditorDistribucion() {
   const box =
     $("listaDistribucionEditar");
 
+
   if (!box) return;
+
 
   box.innerHTML =
     distribucion
@@ -2700,7 +3410,7 @@ function renderEditorDistribucion() {
             <span>
 
               ${escapeHtml(
-                c.icono
+                c.icono || "📦"
               )}
 
               ${escapeHtml(
@@ -2714,13 +3424,14 @@ function renderEditorDistribucion() {
               min="0"
               step="0.01"
               value="${Number(c.limite) || 0}"
-              data-id="${c.id}"
+              data-id="${escapeHtml(c.id)}"
               title="Monto de control"
             >
 
             <button
               class="boton-secundario boton-pequeno"
               onclick="editarArea('${c.id}')"
+              type="button"
             >
               Editar
             </button>
@@ -2728,6 +3439,8 @@ function renderEditorDistribucion() {
             <button
               class="boton-eliminar"
               onclick="eliminarArea('${c.id}')"
+              type="button"
+              title="Eliminar área"
             >
               ✕
             </button>
@@ -2749,7 +3462,9 @@ window.editarArea =
           x.id === id
       );
 
+
     if (!c) return;
+
 
     const n =
       prompt(
@@ -2757,8 +3472,22 @@ window.editarArea =
         c.nombre
       );
 
+
     if (n === null)
       return;
+
+
+    const nombre =
+      n.trim();
+
+
+    if (!nombre) {
+
+      return alert(
+        "El nombre no puede estar vacío."
+      );
+    }
+
 
     const i =
       prompt(
@@ -2767,18 +3496,23 @@ window.editarArea =
           "📦"
       );
 
+
     if (i === null)
       return;
 
+
     c.nombre =
-      n.trim() ||
-      c.nombre;
+      nombre;
+
 
     c.icono =
       i.trim() ||
-      c.icono;
+      c.icono ||
+      "📦";
+
 
     guardarDistribucion();
+
 
     renderEditorDistribucion();
 
@@ -2801,11 +3535,13 @@ window.eliminarArea =
       );
     }
 
+
     const c =
       distribucion.find(
         x =>
           x.id === id
       );
+
 
     if (
       c &&
@@ -2817,7 +3553,9 @@ window.eliminarArea =
       c.activo =
         false;
 
+
       guardarDistribucion();
+
 
       renderEditorDistribucion();
 
@@ -2832,10 +3570,12 @@ $("formNuevaArea")
 
     e.preventDefault();
 
+
     const nombre =
       $("nuevaAreaNombre")
         .value
         .trim();
+
 
     const icono =
       $("nuevaAreaIcono")
@@ -2843,11 +3583,13 @@ $("formNuevaArea")
         .trim() ||
       "📦";
 
+
     const limite =
       Number(
         $("nuevaAreaLimite")
           .value
       ) || 0;
+
 
     if (!nombre) {
 
@@ -2855,6 +3597,27 @@ $("formNuevaArea")
         "Escribe un nombre para el área."
       );
     }
+
+
+    const nombreExiste =
+      distribucion.some(
+        c =>
+          c.activo !== false &&
+          c.nombre
+            .trim()
+            .toLowerCase() ===
+          nombre
+            .toLowerCase()
+      );
+
+
+    if (nombreExiste) {
+
+      return alert(
+        "Ya existe un área con ese nombre."
+      );
+    }
+
 
     distribucion.push({
 
@@ -2869,11 +3632,15 @@ $("formNuevaArea")
 
       activo:
         true
+
     });
+
 
     guardarDistribucion();
 
+
     e.target.reset();
+
 
     renderEditorDistribucion();
 
@@ -2898,20 +3665,25 @@ $("guardarLimitesDistribucion")
               i.dataset.id
           );
 
+
         if (c) {
 
           c.limite =
-            Number(
-              i.value
-            ) || 0;
+            Math.max(
+              Number(i.value) || 0,
+              0
+            );
         }
       });
 
+
     guardarDistribucion();
+
 
     $("modalDistribucion")
       .style.display =
-        "none";
+      "none";
+
 
     render();
   };
@@ -2926,6 +3698,16 @@ $("limpiarMovimientos")
   () => {
 
     if (
+      !movimientos.length
+    ) {
+
+      return alert(
+        "No hay movimientos para eliminar."
+      );
+    }
+
+
+    if (
       confirm(
         "¿Seguro que quieres eliminar todos los movimientos? Esta acción no se puede deshacer."
       )
@@ -2933,7 +3715,9 @@ $("limpiarMovimientos")
 
       movimientos = [];
 
+
       guardarMovimientos();
+
 
       render();
     }
@@ -2947,31 +3731,31 @@ $("limpiarMovimientos")
 $("filtroCategoria")
   .onchange =
   () =>
-    renderHistorial();
+    renderHistorial(true);
 
 
 $("filtroTipo")
   .onchange =
   () =>
-    renderHistorial();
+    renderHistorial(true);
 
 
 $("filtroPeriodo")
   .onchange =
   () =>
-    renderHistorial();
+    renderHistorial(true);
 
 
 $("filtroDesde")
   .onchange =
   () =>
-    renderHistorial();
+    renderHistorial(true);
 
 
 $("filtroHasta")
   .onchange =
   () =>
-    renderHistorial();
+    renderHistorial(true);
 
 
 $("gestionarMovimientos")
@@ -2982,9 +3766,11 @@ $("gestionarMovimientos")
       true
     );
 
+
     $("seccionHistorial")
       .style.display =
-        "block";
+      "block";
+
 
     $("seccionHistorial")
       .scrollIntoView({
@@ -2994,19 +3780,17 @@ $("gestionarMovimientos")
   };
 
 
-$("seccionHistorial")
-  .style.display =
-    "none";
-
-
 /* =========================================================
    EXPORTAR
    ========================================================= */
 
-function exportar(filtro) {
+function exportar(
+  filtro
+) {
 
   let arr =
     movimientos.slice();
+
 
   if (
     filtro === "semana"
@@ -3014,15 +3798,26 @@ function exportar(filtro) {
 
     arr =
       arr.filter(
-        m =>
-          (
-            Date.now() -
-            new Date(m.fecha)
-          ) /
-            86400000 <=
-          7
+        m => {
+
+          const diff =
+            (
+              new Date() -
+              parseFechaLocal(
+                m.fecha
+              )
+            ) /
+            86400000;
+
+
+          return (
+            diff >= 0 &&
+            diff <= 7
+          );
+        }
       );
   }
+
 
   if (
     filtro === "mes"
@@ -3031,11 +3826,15 @@ function exportar(filtro) {
     const n =
       new Date();
 
+
     arr =
       arr.filter(m => {
 
         const d =
-          new Date(m.fecha);
+          parseFechaLocal(
+            m.fecha
+          );
+
 
         return (
           d.getMonth() ===
@@ -3046,13 +3845,36 @@ function exportar(filtro) {
       });
   }
 
-  const csv =
-    "Fecha,Tipo,Categoría,Monto,Descripción,Tipo de gasto\n" +
 
+  arr.sort(
+    (a, b) =>
+      parseFechaLocal(b.fecha) -
+      parseFechaLocal(a.fecha)
+  );
+
+
+  const encabezado =
+    [
+      "Fecha",
+      "Tipo",
+      "Categoría",
+      "Monto",
+      "Descripción",
+      "Tipo de gasto"
+    ]
+      .map(
+        x =>
+          `"${x}"`
+      )
+      .join(",");
+
+
+  const filas =
     arr
       .map(
         m =>
           [
+
             fechaTexto(
               m.fecha
             ),
@@ -3078,12 +3900,14 @@ function exportar(filtro) {
                     m.categoria
                   ),
 
-            m.monto,
+            Number(m.monto || 0)
+              .toFixed(2),
 
             m.descripcion,
 
             m.tipoGasto ||
               ""
+
           ]
             .map(
               x =>
@@ -3098,32 +3922,59 @@ function exportar(filtro) {
       )
       .join("\n");
 
+
+  const csv =
+    encabezado +
+    "\n" +
+    filas;
+
+
+  const blob =
+    new Blob(
+      [
+        "\ufeff" +
+        csv
+      ],
+      {
+        type:
+          "text/csv;charset=utf-8"
+      }
+    );
+
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+
   const a =
     document.createElement(
       "a"
     );
 
+
   a.href =
-    URL.createObjectURL(
-      new Blob(
-        [
-          "\ufeff" +
-          csv
-        ],
-        {
-          type:
-            "text/csv;charset=utf-8"
-        }
-      )
-    );
+    url;
+
 
   a.download =
-    `finanzas_${filtro}.csv`;
+    `finanzas_${filtro}_${hoyISO()}.csv`;
+
+
+  document.body.appendChild(a);
 
   a.click();
 
-  URL.revokeObjectURL(
-    a.href
+  a.remove();
+
+
+  setTimeout(
+    () =>
+      URL.revokeObjectURL(
+        url
+      ),
+    100
   );
 }
 
@@ -3174,7 +4025,11 @@ $("tipoSalida")
   );
 
 
+establecerFechasHoy();
+
+
 let sessionId = null;
+
 
 try {
 
@@ -3196,7 +4051,9 @@ const u =
 
 if (u) {
 
-  usuario = u;
+  usuario =
+    u;
+
 
   mostrarApp();
 
@@ -3204,11 +4061,12 @@ if (u) {
 
   $("pantallaAuth")
     .style.display =
-      "flex";
+    "flex";
+
 
   $("app")
     .style.display =
-      "none";
+    "none";
 }
 
 
@@ -3232,6 +4090,7 @@ if (
             .serviceWorker
             .getRegistrations();
 
+
         for (
           const registration
           of registrations
@@ -3241,6 +4100,7 @@ if (
             .unregister();
         }
 
+
         if (
           window.caches &&
           caches.keys
@@ -3248,6 +4108,7 @@ if (
 
           const keys =
             await caches.keys();
+
 
           for (
             const key
@@ -3261,7 +4122,6 @@ if (
         }
 
       } catch {}
-
     }
   );
 }
