@@ -717,6 +717,111 @@ $("formRegistro").onsubmit =
       $("registroPassword2")
         .value;
 
+    if (!nombre) {
+
+      return mensaje(
+        "registroMensaje",
+        "Escribe tu nombre.",
+        true
+      );
+    }
+
+    if (p1 !== p2) {
+
+      return mensaje(
+        "registroMensaje",
+        "Las contraseñas no coinciden.",
+        true
+      );
+    }
+
+    if (p1.length < 6) {
+
+      return mensaje(
+        "registroMensaje",
+        "La contraseña debe tener al menos 6 caracteres.",
+        true
+      );
+    }
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.auth.signUp({
+        email: correo,
+        password: p1,
+        options: {
+          data: {
+            nombre
+          }
+        }
+      });
+
+    if (error) {
+
+      console.error(
+        "Error Supabase registro:",
+        error
+      );
+
+      return mensaje(
+        "registroMensaje",
+        error.message ||
+        "No se pudo crear la cuenta.",
+        true
+      );
+    }
+
+    if (!data.user) {
+
+      return mensaje(
+        "registroMensaje",
+        "No se pudo crear la cuenta.",
+        true
+      );
+    }
+
+    usuario = {
+      id:
+        data.user.id,
+
+      nombre:
+        nombre,
+
+      correo:
+        correo
+    };
+
+    localStorage.setItem(
+      SESSION_KEY,
+      data.user.id
+    );
+
+    mostrarApp();
+  };
+
+    e.preventDefault();
+
+    const nombre =
+      $("registroNombre")
+        .value
+        .trim();
+
+    const correo =
+      $("registroCorreo")
+        .value
+        .trim()
+        .toLowerCase();
+
+    const p1 =
+      $("registroPassword")
+        .value;
+
+    const p2 =
+      $("registroPassword2")
+        .value;
+
 
     if (!nombre) {
 
@@ -823,34 +928,31 @@ $("formLogin").onsubmit =
 
     e.preventDefault();
 
-
     const correo =
       $("loginCorreo")
         .value
         .trim()
         .toLowerCase();
 
-
     const password =
       $("loginPassword")
         .value;
 
-
-    const hash =
-      await hashPassword(
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.auth.signInWithPassword({
+        email: correo,
         password
+      });
+
+    if (error) {
+
+      console.error(
+        "Error Supabase login:",
+        error
       );
-
-
-    const u =
-      usuarios().find(
-        x =>
-          x.correo === correo &&
-          x.passwordHash === hash
-      );
-
-
-    if (!u) {
 
       return mensaje(
         "loginMensaje",
@@ -859,24 +961,38 @@ $("formLogin").onsubmit =
       );
     }
 
+    if (!data.user) {
 
-    usuario =
-      u;
+      return mensaje(
+        "loginMensaje",
+        "No se pudo iniciar sesión.",
+        true
+      );
+    }
 
+    const nombre =
+      data.user.user_metadata?.nombre ||
+      data.user.email ||
+      "Usuario";
+
+    usuario = {
+
+      id:
+        data.user.id,
+
+      nombre,
+
+      correo:
+        data.user.email
+    };
 
     localStorage.setItem(
       SESSION_KEY,
-      u.id
+      data.user.id
     );
-
 
     mostrarApp();
   };
-
-
-$("botonCerrarSesion")
-  .onclick =
-  cerrarSesion;
 
 
 /* =========================================================
