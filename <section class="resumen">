@@ -346,6 +346,22 @@
 
       </section>
 
+      <article
+  id="tarjetaDisponible"
+  class="tarjeta resumen-disponible"
+>
+  <span>
+    💵 Disponible
+  </span>
+
+  <strong id="totalDisponible">
+    $0.00
+  </strong>
+
+  <small>
+    Ingresos − gastos
+  </small>
+</article>
 
       <!-- =================================================
            BALANCE
