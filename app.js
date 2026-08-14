@@ -277,38 +277,6 @@ function fechaISO(valor) {
 }
 
 
-function inicioSemanaISO() {
-
-  const hoy =
-    parseFechaLocal(
-      hoyISO()
-    );
-
-  const dia =
-    hoy.getDay();
-
-  const diferencia =
-    dia === 0
-      ? 6
-      : dia - 1;
-
-  hoy.setDate(
-    hoy.getDate() -
-    diferencia
-  );
-
-  return [
-    hoy.getFullYear(),
-    String(
-      hoy.getMonth() + 1
-    ).padStart(2, "0"),
-    String(
-      hoy.getDate()
-    ).padStart(2, "0")
-  ].join("-");
-}
-
-
 /* =========================================================
    UTILIDADES
    ========================================================= */
@@ -357,29 +325,6 @@ function crearFijosDefault() {
 }
 
 
-function siguienteOrdenMovimiento() {
-
-  const ordenes =
-    movimientos
-      .map(
-        m =>
-          Number(m.orden)
-      )
-      .filter(
-        Number.isFinite
-      );
-
-  if (!ordenes.length) {
-    return movimientos.length + 1;
-  }
-
-  return (
-    Math.max(...ordenes) +
-    1
-  );
-}
-
-
 /* =========================================================
    MIGRACIÓN
    ========================================================= */
@@ -388,31 +333,22 @@ function migrarEstructuras() {
 
   movimientos =
     Array.isArray(movimientos)
-      ? movimientos.map(
-          (m, index) => ({
+      ? movimientos.map(m => ({
 
-            ...m,
+          ...m,
 
-            id:
-              m.id ||
-              crypto.randomUUID(),
+          id:
+            m.id ||
+            crypto.randomUUID(),
 
-            fecha:
-              fechaISO(m.fecha) ||
-              hoyISO(),
+          fecha:
+            fechaISO(m.fecha) ||
+            hoyISO(),
 
-            monto:
-              Number(m.monto) || 0,
+          monto:
+            Number(m.monto) || 0
 
-            orden:
-              Number.isFinite(
-                Number(m.orden)
-              )
-                ? Number(m.orden)
-                : index + 1
-
-          })
-        )
+        }))
       : [];
 
 
@@ -560,6 +496,19 @@ function cerrarPaneles() {
   });
 
 
+  historialAbierto = false;
+
+
+  const historial =
+    $("seccionHistorial");
+
+  if (historial) {
+
+    historial.style.display =
+      "none";
+  }
+
+
   try {
 
     $("formGasto").reset();
@@ -616,8 +565,6 @@ function mostrarApp() {
 
   establecerFechasHoy();
 
-  historialAbierto = false;
-
   render();
 }
 
@@ -640,28 +587,22 @@ function cerrarSesion() {
   gastosFijos = [];
   categorias = {};
   distribucion = [];
-  historialAbierto = false;
-
 
   cerrarPaneles();
-
 
   $("app")
     .style.display =
     "none";
 
-
   $("pantallaAuth")
     .style.display =
     "flex";
-
 
   $("formLogin").reset();
 
   $("loginMensaje")
     .textContent =
     "";
-
 
   $("tabLogin").click();
 }
@@ -704,11 +645,9 @@ $("tabLogin").onclick =
     $("tabRegistro")
       .classList.remove("activo");
 
-
     $("formLogin")
       .style.display =
       "block";
-
 
     $("formRegistro")
       .style.display =
@@ -725,11 +664,9 @@ $("tabRegistro").onclick =
     $("tabLogin")
       .classList.remove("activo");
 
-
     $("formRegistro")
       .style.display =
       "block";
-
 
     $("formLogin")
       .style.display =
@@ -746,12 +683,10 @@ $("formRegistro").onsubmit =
 
     e.preventDefault();
 
-
     const nombre =
       $("registroNombre")
         .value
         .trim();
-
 
     const correo =
       $("registroCorreo")
@@ -759,11 +694,9 @@ $("formRegistro").onsubmit =
         .trim()
         .toLowerCase();
 
-
     const p1 =
       $("registroPassword")
         .value;
-
 
     const p2 =
       $("registroPassword2")
@@ -1834,8 +1767,8 @@ function renderMovimientosRecientes() {
       .slice()
       .sort(
         (a, b) =>
-          Number(b.orden || 0) -
-          Number(a.orden || 0)
+          parseFechaLocal(b.fecha) -
+          parseFechaLocal(a.fecha)
       )
       .slice(0, 3);
 
@@ -1937,8 +1870,60 @@ function renderHistorial(
   }
 
 
-  const hoy =
-    hoyISO();
+  const now =
+    new Date();
+
+
+  if (
+    periodo === "semana"
+  ) {
+
+    arr =
+      arr.filter(m => {
+
+        const d =
+          parseFechaLocal(
+            m.fecha
+          );
+
+
+        const diff =
+          (
+            now -
+            d
+          ) /
+          86400000;
+
+
+        return (
+          diff >= 0 &&
+          diff <= 7
+        );
+      });
+  }
+
+
+  if (
+    periodo === "mes"
+  ) {
+
+    arr =
+      arr.filter(m => {
+
+        const d =
+          parseFechaLocal(
+            m.fecha
+          );
+
+
+        return (
+          d.getMonth() ===
+            now.getMonth() &&
+          d.getFullYear() ===
+            now.getFullYear()
+        );
+      });
+  }
 
 
   if (
@@ -1948,67 +1933,8 @@ function renderHistorial(
     arr =
       arr.filter(
         m =>
-          fechaISO(
-            m.fecha
-          ) === hoy
-      );
-  }
-
-
-  if (
-    periodo === "semana"
-  ) {
-
-    const inicio =
-      inicioSemanaISO();
-
-    arr =
-      arr.filter(
-        m => {
-
-          const fecha =
-            fechaISO(
-              m.fecha
-            );
-
-          return (
-            fecha >= inicio &&
-            fecha <= hoy
-          );
-        }
-      );
-  }
-
-
-  if (
-    periodo === "mes"
-  ) {
-
-    const ahora =
-      parseFechaLocal(
-        hoy
-      );
-
-    const mes =
-      ahora.getMonth();
-
-    const anio =
-      ahora.getFullYear();
-
-    arr =
-      arr.filter(
-        m => {
-
-          const d =
-            parseFechaLocal(
-              m.fecha
-            );
-
-          return (
-            d.getMonth() === mes &&
-            d.getFullYear() === anio
-          );
-        }
+          fechaISO(m.fecha) ===
+          hoyISO()
       );
   }
 
@@ -2036,28 +1962,9 @@ function renderHistorial(
 
 
   arr.sort(
-    (a, b) => {
-
-      const fechaA =
-        fechaISO(a.fecha);
-
-      const fechaB =
-        fechaISO(b.fecha);
-
-      if (
-        fechaA !== fechaB
-      ) {
-
-        return fechaB.localeCompare(
-          fechaA
-        );
-      }
-
-      return (
-        Number(b.orden || 0) -
-        Number(a.orden || 0)
-      );
-    }
+    (a, b) =>
+      parseFechaLocal(b.fecha) -
+      parseFechaLocal(a.fecha)
   );
 
 
@@ -2274,9 +2181,7 @@ function render() {
 
   renderMovimientosRecientes();
 
-  renderHistorial(
-    historialAbierto
-  );
+  renderHistorial();
 
   renderGastosFijos();
 
@@ -2536,10 +2441,7 @@ $("formIngreso").onsubmit =
           .value
           .trim(),
 
-      fecha,
-
-      orden:
-        siguienteOrdenMovimiento()
+      fecha
 
     });
 
@@ -2550,10 +2452,10 @@ $("formIngreso").onsubmit =
     e.target.reset();
 
 
-    establecerFechasHoy();
-
-
     render();
+
+
+    establecerFechasHoy();
 
 
     $("formularioIngreso")
@@ -2699,10 +2601,6 @@ $("formGasto").onsubmit =
     }
 
 
-    const orden =
-      siguienteOrdenMovimiento();
-
-
     if (
       tipo === "gasto" &&
       $("gastoFijoSeleccion").value
@@ -2748,9 +2646,7 @@ $("formGasto").onsubmit =
         fecha,
 
         origenFijo:
-          g?.id,
-
-        orden
+          g?.id
 
       });
 
@@ -2781,9 +2677,7 @@ $("formGasto").onsubmit =
           $("tipoGasto")
             .value,
 
-        fecha,
-
-        orden
+        fecha
 
       });
 
@@ -2809,9 +2703,7 @@ $("formGasto").onsubmit =
             .value
             .trim(),
 
-        fecha,
-
-        orden
+        fecha
 
       });
 
@@ -2850,9 +2742,7 @@ $("formGasto").onsubmit =
             .value
             .trim(),
 
-        fecha,
-
-        orden
+        fecha
 
       });
     }
@@ -2867,10 +2757,10 @@ $("formGasto").onsubmit =
     cerrarFormGasto();
 
 
-    establecerFechasHoy();
-
-
     render();
+
+
+    establecerFechasHoy();
   };
 
 
@@ -2881,18 +2771,9 @@ $("formGasto").onsubmit =
 window.eliminarMovimiento =
   id => {
 
-    const movimiento =
-      movimientos.find(
-        m =>
-          m.id === id
-      );
-
-    if (!movimiento) return;
-
-
     if (
       confirm(
-        `¿Seguro que deseas eliminar este movimiento?\n\n${movimiento.descripcion || "Movimiento"} · ${money(movimiento.monto)}`
+        "¿Eliminar este movimiento?"
       )
     ) {
 
@@ -3110,7 +2991,7 @@ $("formEdicion").onsubmit =
       ) {
 
         return alert(
-          "No puedes guardar este retiro. Tu ahorro disponible sería insuficiente."
+          `No puedes guardar este retiro. Tu ahorro disponible sería insuficiente.`
         );
       }
     }
@@ -3800,7 +3681,7 @@ $("guardarLimitesDistribucion")
 
 
 /* =========================================================
-   FILTROS / GESTIÓN DE MOVIMIENTOS
+   FILTROS / HISTORIAL
    ========================================================= */
 
 function abrirHistorial() {
@@ -3824,6 +3705,29 @@ function abrirHistorial() {
 }
 
 
+$("gestionarMovimientos").onclick =
+  abrirHistorial;
+
+
+const botonCerrarHistorial =
+  $("cerrarHistorial");
+
+if (botonCerrarHistorial) {
+
+  botonCerrarHistorial.onclick =
+    () => {
+
+      historialAbierto = false;
+
+      const seccion =
+        $("seccionHistorial");
+
+      if (!seccion) return;
+
+      seccion.style.display =
+        "none";
+    };
+}
 
 
 $("filtroCategoria")
@@ -3856,11 +3760,6 @@ $("filtroHasta")
     renderHistorial(true);
 
 
-$("gestionarMovimientos")
-  .onclick =
-  abrirHistorial;
-
-
 /* =========================================================
    EXPORTAR
    ========================================================= */
@@ -3877,24 +3776,23 @@ function exportar(
     filtro === "semana"
   ) {
 
-    const inicio =
-      inicioSemanaISO();
-
-    const hoy =
-      hoyISO();
-
     arr =
       arr.filter(
         m => {
 
-          const fecha =
-            fechaISO(
-              m.fecha
-            );
+          const diff =
+            (
+              new Date() -
+              parseFechaLocal(
+                m.fecha
+              )
+            ) /
+            86400000;
+
 
           return (
-            fecha >= inicio &&
-            fecha <= hoy
+            diff >= 0 &&
+            diff <= 7
           );
         }
       );
@@ -3906,55 +3804,32 @@ function exportar(
   ) {
 
     const n =
-      parseFechaLocal(
-        hoyISO()
-      );
+      new Date();
 
 
     arr =
-      arr.filter(
-        m => {
+      arr.filter(m => {
 
-          const d =
-            parseFechaLocal(
-              m.fecha
-            );
-
-
-          return (
-            d.getMonth() ===
-              n.getMonth() &&
-            d.getFullYear() ===
-              n.getFullYear()
+        const d =
+          parseFechaLocal(
+            m.fecha
           );
-        }
-      );
+
+
+        return (
+          d.getMonth() ===
+            n.getMonth() &&
+          d.getFullYear() ===
+            n.getFullYear()
+        );
+      });
   }
 
 
   arr.sort(
-    (a, b) => {
-
-      const fechaA =
-        fechaISO(a.fecha);
-
-      const fechaB =
-        fechaISO(b.fecha);
-
-      if (
-        fechaA !== fechaB
-      ) {
-
-        return fechaB.localeCompare(
-          fechaA
-        );
-      }
-
-      return (
-        Number(b.orden || 0) -
-        Number(a.orden || 0)
-      );
-    }
+    (a, b) =>
+      parseFechaLocal(b.fecha) -
+      parseFechaLocal(a.fecha)
   );
 
 
@@ -4159,7 +4034,6 @@ if (u) {
   usuario =
     u;
 
-
   mostrarApp();
 
 } else {
@@ -4167,7 +4041,6 @@ if (u) {
   $("pantallaAuth")
     .style.display =
     "flex";
-
 
   $("app")
     .style.display =
