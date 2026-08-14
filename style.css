@@ -569,58 +569,96 @@ input:focus, select:focus {
   transition: .25s ease;
 }
 
-/* PAGADO */
+/* =========================================================
+   ESTADOS DE GASTOS FIJOS
+   ========================================================= */
+
+.fijo-item {
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease,
+              border-color .2s ease, background .2s ease;
+}
+
+/* Franja lateral */
+.fijo-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--border-color);
+  transition: background .2s ease;
+}
+
+/* =========================
+   🟢 PAGADO
+   ========================= */
+
 .fijo-item.pagado {
-  opacity: 1;
-  border-color: #bbf7d0;
-  background: var(--verde-suave);
+  border-color: rgba(74, 222, 128, .35);
+  background: rgba(74, 222, 128, .06);
 }
 
 .fijo-item.pagado::before {
-  background: var(--verde);
+  background: var(--verde-exito);
 }
 
-/* PENDIENTE */
+.fijo-item.pagado .progreso {
+  background: var(--verde-exito);
+}
+
+.fijo-item.pagado .boton-secundario {
+  border-color: rgba(74, 222, 128, .3);
+  color: var(--verde-exito);
+  background: rgba(74, 222, 128, .08);
+}
+
+/* =========================
+   🟡 PENDIENTE
+   ========================= */
+
 .fijo-item:not(.pagado):not(.atrasado) {
-  border-color: var(--borde);
+  border-color: rgba(251, 191, 36, .25);
 }
 
 .fijo-item:not(.pagado):not(.atrasado)::before {
-  background: var(--amarillo);
+  background: #fbbf24;
 }
 
-/* VENCIDO / ATRASADO */
+.fijo-item:not(.pagado):not(.atrasado) .progreso {
+  background: #fbbf24;
+}
+
+/* =========================
+   🔴 VENCIDO / ATRASADO
+   ========================= */
+
 .fijo-item.atrasado {
-  border-color: #fed7aa;
-  background: var(--amarillo-suave);
+  border-color: rgba(248, 113, 113, .35);
+  background: rgba(248, 113, 113, .06);
 }
 
 .fijo-item.atrasado::before {
-  background: var(--rojo);
-}
-
-/* Barra de progreso */
-.fijo-item.pagado .progreso {
-  background: var(--verde);
+  background: var(--rojo-alerta);
 }
 
 .fijo-item.atrasado .progreso {
-  background: var(--rojo);
-}
-
-/* Botones */
-.fijo-item.pagado .boton-secundario {
-  background: var(--verde-suave);
-  color: var(--verde);
+  background: var(--rojo-alerta);
 }
 
 .fijo-item.atrasado .boton-secundario {
-  background: var(--rojo-suave);
-  color: var(--rojo);
+  border-color: rgba(248, 113, 113, .3);
+  color: var(--rojo-alerta);
+  background: rgba(248, 113, 113, .08);
 }
 
-/* Efecto al pasar el mouse */
+/* =========================
+   EFECTO AL PASAR EL MOUSE
+   ========================= */
+
 .fijo-item:hover {
   transform: translateY(-2px);
-  box-shadow: var(--sombra);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
 }
