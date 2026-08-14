@@ -3824,18 +3824,6 @@ function abrirHistorial() {
 }
 
 
-$("cerrarHistorial").onclick = () => {
-
-  historialAbierto = false;
-
-  const seccion =
-    $("seccionHistorial");
-
-  if (!seccion) return;
-
-  seccion.style.display =
-    "none";
-};
 
 
 $("filtroCategoria")
