@@ -1,3 +1,9 @@
+const $ = id => document.getElementById(id);
+
+const money = n =>
+  "$" + Number(n || 0).toFixed(2);
+
+
 /* =========================================================
    SUPABASE AUTH
    ========================================================= */
@@ -13,10 +19,11 @@ const supabaseClient =
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY
   );
-const $ = id => document.getElementById(id);
 
-const money = n =>
-  "$" + Number(n || 0).toFixed(2);
+
+/* =========================================================
+   CONFIGURACIÓN LOCAL ACTUAL
+   ========================================================= */
 
 const USERS_KEY = "kf_usuarios_v2";
 const SESSION_KEY = "kf_sesion_v2";
@@ -61,7 +68,6 @@ let movimientos = [];
 let gastosFijos = [];
 let categorias = {};
 let distribucion = [];
-let historialAbierto = false;
 
 
 /* =========================================================
@@ -511,19 +517,6 @@ function cerrarPaneles() {
   });
 
 
-  historialAbierto = false;
-
-
-  const historial =
-    $("seccionHistorial");
-
-  if (historial) {
-
-    historial.style.display =
-      "none";
-  }
-
-
   try {
 
     $("formGasto").reset();
@@ -588,13 +581,29 @@ function mostrarApp() {
    CERRAR SESIÓN
    ========================================================= */
 
-function cerrarSesion() {
+async function cerrarSesion() {
 
-  guardarDatos();
+  try {
 
-  localStorage.removeItem(
-    SESSION_KEY
-  );
+    await supabaseClient.auth.signOut();
+
+  } catch (error) {
+
+    console.error(
+      "Error cerrando sesión Supabase:",
+      error
+    );
+  }
+
+
+  try {
+
+    localStorage.removeItem(
+      SESSION_KEY
+    );
+
+  } catch {}
+
 
   usuario = null;
 
@@ -603,15 +612,19 @@ function cerrarSesion() {
   categorias = {};
   distribucion = [];
 
+
   cerrarPaneles();
+
 
   $("app")
     .style.display =
     "none";
 
+
   $("pantallaAuth")
     .style.display =
     "flex";
+
 
   $("formLogin").reset();
 
@@ -619,8 +632,14 @@ function cerrarSesion() {
     .textContent =
     "";
 
+
   $("tabLogin").click();
 }
+
+
+$("botonCerrarSesion")
+  .onclick =
+  cerrarSesion;
 
 
 /* =========================================================
@@ -660,9 +679,11 @@ $("tabLogin").onclick =
     $("tabRegistro")
       .classList.remove("activo");
 
+
     $("formLogin")
       .style.display =
       "block";
+
 
     $("formRegistro")
       .style.display =
@@ -679,9 +700,11 @@ $("tabRegistro").onclick =
     $("tabLogin")
       .classList.remove("activo");
 
+
     $("formRegistro")
       .style.display =
       "block";
+
 
     $("formLogin")
       .style.display =
@@ -690,7 +713,7 @@ $("tabRegistro").onclick =
 
 
 /* =========================================================
-   REGISTRO
+   REGISTRO — SUPABASE AUTH
    ========================================================= */
 
 $("formRegistro").onsubmit =
@@ -698,10 +721,12 @@ $("formRegistro").onsubmit =
 
     e.preventDefault();
 
+
     const nombre =
       $("registroNombre")
         .value
         .trim();
+
 
     const correo =
       $("registroCorreo")
@@ -709,13 +734,16 @@ $("formRegistro").onsubmit =
         .trim()
         .toLowerCase();
 
+
     const p1 =
       $("registroPassword")
         .value;
 
+
     const p2 =
       $("registroPassword2")
         .value;
+
 
     if (!nombre) {
 
@@ -726,6 +754,7 @@ $("formRegistro").onsubmit =
       );
     }
 
+
     if (p1 !== p2) {
 
       return mensaje(
@@ -734,6 +763,7 @@ $("formRegistro").onsubmit =
         true
       );
     }
+
 
     if (p1.length < 6) {
 
@@ -744,19 +774,29 @@ $("formRegistro").onsubmit =
       );
     }
 
+
     const {
       data,
       error
     } =
       await supabaseClient.auth.signUp({
-        email: correo,
-        password: p1,
+
+        email:
+          correo,
+
+        password:
+          p1,
+
         options: {
+
           data: {
             nombre
           }
+
         }
+
       });
+
 
     if (error) {
 
@@ -773,6 +813,7 @@ $("formRegistro").onsubmit =
       );
     }
 
+
     if (!data.user) {
 
       return mensaje(
@@ -782,136 +823,41 @@ $("formRegistro").onsubmit =
       );
     }
 
+
+    /*
+     * Si Supabase tiene activada la confirmación
+     * por correo, puede crear el usuario pero
+     * no entregar una sesión todavía.
+     */
+
+    if (!data.session) {
+
+      return mensaje(
+        "registroMensaje",
+        "Cuenta creada. Revisa tu correo para confirmar la cuenta y luego inicia sesión."
+      );
+    }
+
+
     usuario = {
+
       id:
         data.user.id,
 
       nombre:
+        data.user.user_metadata?.nombre ||
         nombre,
 
       correo:
+        data.user.email ||
         correo
+
     };
+
 
     localStorage.setItem(
       SESSION_KEY,
       data.user.id
-    );
-
-    mostrarApp();
-  };
-
-    e.preventDefault();
-
-    const nombre =
-      $("registroNombre")
-        .value
-        .trim();
-
-    const correo =
-      $("registroCorreo")
-        .value
-        .trim()
-        .toLowerCase();
-
-    const p1 =
-      $("registroPassword")
-        .value;
-
-    const p2 =
-      $("registroPassword2")
-        .value;
-
-
-    if (!nombre) {
-
-      return mensaje(
-        "registroMensaje",
-        "Escribe tu nombre.",
-        true
-      );
-    }
-
-
-    if (p1 !== p2) {
-
-      return mensaje(
-        "registroMensaje",
-        "Las contraseñas no coinciden.",
-        true
-      );
-    }
-
-
-    if (p1.length < 6) {
-
-      return mensaje(
-        "registroMensaje",
-        "La contraseña debe tener al menos 6 caracteres.",
-        true
-      );
-    }
-
-
-    const lista =
-      usuarios();
-
-
-    if (
-      lista.some(
-        u =>
-          u.correo === correo
-      )
-    ) {
-
-      return mensaje(
-        "registroMensaje",
-        "Ese correo ya está registrado.",
-        true
-      );
-    }
-
-
-    const nuevo = {
-
-      id:
-        crypto.randomUUID(),
-
-      nombre,
-
-      correo,
-
-      passwordHash:
-        await hashPassword(p1),
-
-      creado:
-        new Date().toISOString()
-
-    };
-
-
-    lista.push(nuevo);
-
-
-    if (
-      !guardarUsuarios(lista)
-    ) {
-
-      return mensaje(
-        "registroMensaje",
-        "No se pudo guardar la cuenta.",
-        true
-      );
-    }
-
-
-    usuario =
-      nuevo;
-
-
-    localStorage.setItem(
-      SESSION_KEY,
-      nuevo.id
     );
 
 
@@ -920,7 +866,7 @@ $("formRegistro").onsubmit =
 
 
 /* =========================================================
-   LOGIN
+   LOGIN — SUPABASE AUTH
    ========================================================= */
 
 $("formLogin").onsubmit =
@@ -928,24 +874,32 @@ $("formLogin").onsubmit =
 
     e.preventDefault();
 
+
     const correo =
       $("loginCorreo")
         .value
         .trim()
         .toLowerCase();
 
+
     const password =
       $("loginPassword")
         .value;
+
 
     const {
       data,
       error
     } =
       await supabaseClient.auth.signInWithPassword({
-        email: correo,
+
+        email:
+          correo,
+
         password
+
       });
+
 
     if (error) {
 
@@ -961,6 +915,7 @@ $("formLogin").onsubmit =
       );
     }
 
+
     if (!data.user) {
 
       return mensaje(
@@ -970,26 +925,29 @@ $("formLogin").onsubmit =
       );
     }
 
-    const nombre =
-      data.user.user_metadata?.nombre ||
-      data.user.email ||
-      "Usuario";
 
     usuario = {
 
       id:
         data.user.id,
 
-      nombre,
+      nombre:
+        data.user.user_metadata?.nombre ||
+        data.user.email ||
+        "Usuario",
 
       correo:
-        data.user.email
+        data.user.email ||
+        correo
+
     };
+
 
     localStorage.setItem(
       SESSION_KEY,
       data.user.id
     );
+
 
     mostrarApp();
   };
@@ -3812,54 +3770,8 @@ $("guardarLimitesDistribucion")
 
 
 /* =========================================================
-   FILTROS / HISTORIAL
+   FILTROS
    ========================================================= */
-
-function abrirHistorial() {
-
-  historialAbierto = true;
-
-  renderHistorial(true);
-
-  const seccion =
-    $("seccionHistorial");
-
-  if (!seccion) return;
-
-  seccion.style.display =
-    "block";
-
-  seccion.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-}
-
-
-$("gestionarMovimientos").onclick =
-  abrirHistorial;
-
-
-const botonCerrarHistorial =
-  $("cerrarHistorial");
-
-if (botonCerrarHistorial) {
-
-  botonCerrarHistorial.onclick =
-    () => {
-
-      historialAbierto = false;
-
-      const seccion =
-        $("seccionHistorial");
-
-      if (!seccion) return;
-
-      seccion.style.display =
-        "none";
-    };
-}
-
 
 $("filtroCategoria")
   .onchange =
@@ -3889,6 +3801,41 @@ $("filtroHasta")
   .onchange =
   () =>
     renderHistorial(true);
+
+
+$("gestionarMovimientos")
+  .onclick =
+  () => {
+
+    renderHistorial(true);
+
+
+    $("seccionHistorial")
+      .style.display =
+      "block";
+
+
+    $("seccionHistorial")
+      .scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+  };
+
+
+$("cerrarHistorial")
+  .onclick =
+  () => {
+
+    $("seccionHistorial")
+      .style.display =
+      "none";
+  };
+
+
+$("seccionHistorial")
+  .style.display =
+  "none";
 
 
 /* =========================================================
@@ -4127,7 +4074,185 @@ $("botonConfiguracion")
 
 
 /* =========================================================
-   INICIO
+   INICIO / SESIÓN SUPABASE
+   ========================================================= */
+
+async function iniciarAplicacion() {
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.auth.getSession();
+
+
+    if (error) {
+
+      console.error(
+        "Error obteniendo sesión Supabase:",
+        error
+      );
+    }
+
+
+    const session =
+      data?.session;
+
+
+    if (session?.user) {
+
+      const authUser =
+        session.user;
+
+
+      usuario = {
+
+        id:
+          authUser.id,
+
+        nombre:
+          authUser.user_metadata?.nombre ||
+          authUser.email ||
+          "Usuario",
+
+        correo:
+          authUser.email ||
+          ""
+
+      };
+
+
+      localStorage.setItem(
+        SESSION_KEY,
+        authUser.id
+      );
+
+
+      mostrarApp();
+
+      return;
+    }
+
+  } catch (error) {
+
+    console.error(
+      "No se pudo consultar Supabase Auth:",
+      error
+    );
+  }
+
+
+  /*
+   * Compatibilidad temporal con la sesión
+   * local anterior de la V1.
+   */
+
+  let sessionId = null;
+
+
+  try {
+
+    sessionId =
+      localStorage.getItem(
+        SESSION_KEY
+      );
+
+  } catch {}
+
+
+  const u =
+    usuarios().find(
+      x =>
+        x.id ===
+        sessionId
+    );
+
+
+  if (u) {
+
+    usuario =
+      u;
+
+
+    mostrarApp();
+
+    return;
+  }
+
+
+  $("pantallaAuth")
+    .style.display =
+    "flex";
+
+
+  $("app")
+    .style.display =
+    "none";
+}
+
+
+/* =========================================================
+   OBSERVAR CAMBIOS DE SESIÓN
+   ========================================================= */
+
+supabaseClient.auth.onAuthStateChange(
+  (
+    event,
+    session
+  ) => {
+
+    if (
+      event ===
+      "SIGNED_OUT"
+    ) {
+
+      return;
+    }
+
+
+    if (
+      session?.user &&
+      !usuario
+    ) {
+
+      const authUser =
+        session.user;
+
+
+      usuario = {
+
+        id:
+          authUser.id,
+
+        nombre:
+          authUser.user_metadata?.nombre ||
+          authUser.email ||
+          "Usuario",
+
+        correo:
+          authUser.email ||
+          ""
+
+      };
+
+
+      localStorage.setItem(
+        SESSION_KEY,
+        authUser.id
+      );
+
+
+      mostrarApp();
+    }
+
+  }
+);
+
+
+/* =========================================================
+   INICIAR
    ========================================================= */
 
 $("tipoSalida")
@@ -4139,44 +4264,7 @@ $("tipoSalida")
 establecerFechasHoy();
 
 
-let sessionId = null;
-
-
-try {
-
-  sessionId =
-    localStorage.getItem(
-      SESSION_KEY
-    );
-
-} catch {}
-
-
-const u =
-  usuarios().find(
-    x =>
-      x.id ===
-      sessionId
-  );
-
-
-if (u) {
-
-  usuario =
-    u;
-
-  mostrarApp();
-
-} else {
-
-  $("pantallaAuth")
-    .style.display =
-    "flex";
-
-  $("app")
-    .style.display =
-    "none";
-}
+iniciarAplicacion();
 
 
 /* =========================================================
@@ -4231,6 +4319,7 @@ if (
         }
 
       } catch {}
+
     }
   );
 }
