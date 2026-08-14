@@ -45,7 +45,7 @@ let usuario = null;
 let movimientos = [];
 let gastosFijos = [];
 let categorias = {};
-let distribucion = [];
+let distribucion = {};
 
 
 /* =========================================================
@@ -390,11 +390,6 @@ function migrarEstructuras() {
       crearCategoriasDefault();
   }
 
-
-  /*
-   * Si una cuenta antigua no tenía gastos fijos,
-   * recuperamos los tres iniciales.
-   */
 
   if (!gastosFijos.length) {
 
@@ -995,7 +990,7 @@ function renderResumen() {
     .style.color =
     disponible < 0
       ? "var(--rojo-alerta)"
-      : "var(--texto-principal)";
+      : "var(--celeste-accent)";
 }
 
 
@@ -2256,6 +2251,9 @@ function cerrarFormGasto() {
     .dispatchEvent(
       new Event("change")
     );
+
+
+  establecerFechasHoy();
 }
 
 
@@ -2775,9 +2773,21 @@ $("formGasto").onsubmit =
 window.eliminarMovimiento =
   id => {
 
+    const movimiento =
+      movimientos.find(
+        m =>
+          m.id === id
+      );
+
+    if (!movimiento) return;
+
+    const nombre =
+      movimiento.descripcion ||
+      "este movimiento";
+
     if (
       confirm(
-        "¿Eliminar este movimiento?"
+        `¿Seguro que deseas eliminar "${nombre}"?`
       )
     ) {
 
@@ -2913,6 +2923,9 @@ $("cancelarEdicion")
     $("formularioEdicion")
       .style.display =
       "none";
+
+    $("formEdicion")
+      .reset();
   };
 
 
@@ -2967,11 +2980,6 @@ $("formEdicion").onsubmit =
     }
 
 
-    /*
-     * Si se está editando un retiro,
-     * comprobamos que no deje el ahorro negativo.
-     */
-
     if (
       nuevoTipo ===
       "retiro_ahorro"
@@ -3000,7 +3008,7 @@ $("formEdicion").onsubmit =
       ) {
 
         return alert(
-          `No puedes guardar este retiro. Tu ahorro disponible sería insuficiente.`
+          "No puedes guardar este retiro. Tu ahorro disponible sería insuficiente."
         );
       }
     }
@@ -3046,6 +3054,9 @@ $("formEdicion").onsubmit =
     $("formularioEdicion")
       .style.display =
       "none";
+
+    $("formEdicion")
+      .reset();
   };
 
 
@@ -3686,41 +3697,6 @@ $("guardarLimitesDistribucion")
 
 
     render();
-  };
-
-
-/* =========================================================
-   LIMPIAR MOVIMIENTOS
-   ========================================================= */
-
-$("limpiarMovimientos")
-  .onclick =
-  () => {
-
-    if (
-      !movimientos.length
-    ) {
-
-      return alert(
-        "No hay movimientos para eliminar."
-      );
-    }
-
-
-    if (
-      confirm(
-        "¿Seguro que quieres eliminar todos los movimientos? Esta acción no se puede deshacer."
-      )
-    ) {
-
-      movimientos = [];
-
-
-      guardarMovimientos();
-
-
-      render();
-    }
   };
 
 
