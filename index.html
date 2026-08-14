@@ -266,6 +266,7 @@
           id="tarjetaIngresos"
           class="tarjeta tarjeta-interactiva resumen-ingresos"
           tabindex="0"
+          role="button"
         >
 
           <span>
@@ -287,6 +288,7 @@
           id="tarjetaGastos"
           class="tarjeta tarjeta-interactiva resumen-gastos"
           tabindex="0"
+          role="button"
         >
 
           <span>
@@ -328,6 +330,7 @@
           id="tarjetaAhorro"
           class="tarjeta tarjeta-interactiva resumen-ahorro"
           tabindex="0"
+          role="button"
         >
 
           <span>
@@ -339,30 +342,32 @@
           </strong>
 
           <small>
-            Registrar ahorro
+            Ahorro acumulado
+          </small>
+
+        </article>
+
+
+        <article
+          id="tarjetaDisponible"
+          class="tarjeta resumen-disponible"
+        >
+
+          <span>
+            💵 Disponible
+          </span>
+
+          <strong id="totalDisponible">
+            $0.00
+          </strong>
+
+          <small>
+            Dinero disponible después de gastos
           </small>
 
         </article>
 
       </section>
-
-      <article
-  id="tarjetaDisponible"
-  class="tarjeta resumen-disponible"
->
-  <span>
-    💵 Disponible
-  </span>
-
-  <strong id="totalDisponible">
-    $0.00
-  </strong>
-
-  <small>
-    Ingresos − gastos
-  </small>
-</article>
-
 
 
       <!-- =================================================
@@ -372,6 +377,7 @@
       <section
         id="formularioIngreso"
         class="panel formulario-panel"
+        style="display:none"
       >
 
         <div class="panel-titulo">
@@ -412,6 +418,7 @@
             id="tipoIngreso"
             required
           >
+
             <option value="">
               Selecciona un tipo
             </option>
@@ -427,6 +434,7 @@
             <option value="otro">
               📦 Otro
             </option>
+
           </select>
 
 
@@ -437,7 +445,7 @@
           <input
             id="montoIngreso"
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             required
           >
@@ -484,6 +492,7 @@
       <section
         id="formularioGasto"
         class="panel formulario-panel"
+        style="display:none"
       >
 
         <div class="panel-titulo">
@@ -578,9 +587,11 @@
               </label>
 
               <select id="gastoFijoSeleccion">
+
                 <option value="">
                   Ninguno
                 </option>
+
               </select>
 
             </div>
@@ -588,7 +599,10 @@
           </div>
 
 
-          <div id="campoRetiroAhorro">
+          <div
+            id="campoRetiroAhorro"
+            style="display:none"
+          >
 
             <label>
               Retiro desde ahorro
@@ -608,7 +622,7 @@
           <input
             id="monto"
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             required
           >
@@ -664,8 +678,12 @@
             </span>
 
             <h2>
-              ¿Dónde se va mi dinero?
+              Distribución
             </h2>
+
+            <p class="descripcion-panel">
+              Controla cuánto utilizas en cada área.
+            </p>
 
           </div>
 
@@ -723,6 +741,10 @@
               Pagos mensuales
             </h2>
 
+            <p class="descripcion-panel">
+              Controla tus pagos recurrentes y su estado.
+            </p>
+
           </div>
 
           <button
@@ -774,7 +796,7 @@
               <input
                 id="fijoMonto"
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
                 required
               >
@@ -838,6 +860,7 @@
       <section
         id="seccionHistorial"
         class="panel"
+        style="display:none"
       >
 
         <div class="seccion-cabecera">
@@ -867,10 +890,13 @@
         <div class="filtros filtros-historial">
 
           <select id="filtroCategoria">
+
             <option value="todas">
               Todas las categorías
             </option>
+
           </select>
+
 
           <select id="filtroTipo">
 
@@ -896,6 +922,7 @@
 
           </select>
 
+
           <select id="filtroPeriodo">
 
             <option value="todos">
@@ -916,14 +943,18 @@
 
           </select>
 
+
           <input
             id="filtroDesde"
             type="date"
+            title="Desde"
           >
+
 
           <input
             id="filtroHasta"
             type="date"
+            title="Hasta"
           >
 
         </div>
@@ -1091,9 +1122,7 @@
         </button>
 
 
-        <hr
-          style="margin:24px 0;border:0;border-top:1px solid var(--borde)"
-        >
+        <hr class="separador">
 
 
         <h3>
@@ -1163,6 +1192,7 @@
     <section
       id="formularioEdicion"
       class="panel formulario-panel"
+      style="display:none"
     >
 
       <div class="panel-titulo">
@@ -1178,6 +1208,14 @@
           </h2>
 
         </div>
+
+        <button
+          id="cerrarEdicion"
+          class="boton-cerrar"
+          type="button"
+        >
+          ✕
+        </button>
 
       </div>
 
@@ -1225,7 +1263,7 @@
         <input
           id="editarMonto"
           type="number"
-          min="0"
+          min="0.01"
           step="0.01"
           required
         >
@@ -1289,10 +1327,6 @@
 
   </main>
 
-
-  <!-- =====================================================
-       JAVASCRIPT
-       ===================================================== -->
 
   <script src="./app.js"></script>
 
