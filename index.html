@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -74,6 +75,8 @@
 
       </div>
 
+      <!-- LOGIN -->
+
       <form
         id="formLogin"
         class="auth-form"
@@ -118,6 +121,8 @@
         </div>
 
       </form>
+
+      <!-- REGISTRO -->
 
       <form
         id="formRegistro"
@@ -206,6 +211,8 @@
     id="app"
     style="display:none"
   >
+
+    <!-- ENCABEZADO -->
 
     <header class="encabezado">
 
@@ -700,7 +707,6 @@
       </section>
 
 
-
       <!-- =================================================
            GASTOS FIJOS
            ================================================= -->
@@ -835,55 +841,145 @@
            HISTORIAL
            ================================================= -->
 
-      <div class="seccion-cabecera">
+      <section
+        id="seccionHistorial"
+        class="panel"
+        style="display:none"
+      >
 
-  <div>
+        <div class="seccion-cabecera">
 
-    <span class="etiqueta">
-      HISTORIAL
-    </span>
+          <div>
 
-    <h2>
-      Movimientos
-    </h2>
+            <span class="etiqueta">
+              HISTORIAL
+            </span>
 
-  </div>
+            <h2>
+              Movimientos
+            </h2>
 
-  <div class="encabezado-acciones">
+          </div>
 
-    <span
-      id="contadorHistorial"
-      class="periodo"
-    >
-      0 movimientos
-    </span>
+          <div class="encabezado-acciones">
 
-    <button
-      id="cerrarHistorial"
-      class="boton-cerrar"
-      type="button"
-      title="Cerrar historial"
-    >
-      ✕
-    </button>
+            <span
+              id="contadorHistorial"
+              class="periodo"
+            >
+              0 movimientos
+            </span>
 
-  </div>
+            <button
+              id="cerrarHistorial"
+              class="boton-cerrar"
+              type="button"
+              title="Cerrar historial"
+            >
+              ✕
+            </button>
 
-</div>
+          </div>
+
+        </div>
+
+
+        <div class="filtros filtros-historial">
+
+          <select id="filtroCategoria">
+
+            <option value="todas">
+              Todas las categorías
+            </option>
+
+          </select>
+
+
+          <select id="filtroTipo">
+
+            <option value="todos">
+              Todos los tipos
+            </option>
+
+            <option value="ingreso">
+              Ingresos
+            </option>
+
+            <option value="gasto">
+              Gastos
+            </option>
+
+            <option value="ahorro">
+              Ahorros
+            </option>
+
+            <option value="retiro_ahorro">
+              Retiros de ahorro
+            </option>
+
+          </select>
+
+
+          <select id="filtroPeriodo">
+
+            <option value="todos">
+              Todo el tiempo
+            </option>
+
+            <option value="dia">
+              Hoy
+            </option>
+
+            <option value="semana">
+              Últimos 7 días
+            </option>
+
+            <option value="mes">
+              Este mes
+            </option>
+
+          </select>
+
+
+          <input
+            id="filtroDesde"
+            type="date"
+            title="Desde"
+          >
+
+
+          <input
+            id="filtroHasta"
+            type="date"
+            title="Hasta"
+          >
+
+        </div>
+
+
+        <div
+          id="historialMovimientos"
+          class="historial-lista"
+        ></div>
+
+      </section>
+
 
       <!-- =================================================
-     ACCIONES MOVIMIENTOS
-     ================================================= -->
+           ACCIONES MOVIMIENTOS
+           ================================================= -->
 
-<div class="barra-accesos">
-  <button
-    id="gestionarMovimientos"
-    class="boton-secundario"
-    type="button"
-  >
-    Gestionar movimientos
-  </button>
-</div>
+      <div class="barra-accesos">
+
+        <button
+          id="gestionarMovimientos"
+          class="boton-secundario"
+          type="button"
+        >
+          Gestionar movimientos
+        </button>
+
+      </div>
 
 
       <!-- =================================================
@@ -1095,9 +1191,9 @@
     </div>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          EDICIÓN DE MOVIMIENTO
-         =================================================== -->
+         ================================================= -->
 
     <section
       id="formularioEdicion"
@@ -1242,3 +1338,4 @@
 
 </body>
 </html>
+```
