@@ -1,3 +1,18 @@
+/* =========================================================
+   SUPABASE AUTH
+   ========================================================= */
+
+const SUPABASE_URL =
+  "https://qbyrgjkyemdnqortkxcc.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_CyU2fuL97wQwdahYgXil0Q_RN0-IYr2";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
 const $ = id => document.getElementById(id);
 
 const money = n =>
