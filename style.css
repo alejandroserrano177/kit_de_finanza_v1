@@ -386,6 +386,22 @@ select:focus {
   color: #fecaca;
 }
 
+.boton-peligro {
+  background: transparent;
+  border: 1px solid var(--rojo-alerta);
+  color: var(--rojo-alerta);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: background .2s, color .2s;
+}
+
+.boton-peligro:hover {
+  background: var(--rojo-alerta);
+  color: #fff;
+}
+
 .boton-icono {
   background: var(--bg-hover);
   border: 1px solid var(--border-color);
