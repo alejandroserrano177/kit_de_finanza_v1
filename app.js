@@ -494,28 +494,20 @@ function renderResumen() {
   $("totalAhorro").textContent =
     money(ahorro);
 
+  $("totalDisponible").textContent =
+  money(disponible);
+
+$("totalDisponible").style.color =
+  disponible < 0
+    ? "var(--rojo)"
+    : "var(--principal)";
+
   $("totalBalance").style.color =
     disponible < 0
       ? "var(--rojo)"
       : "var(--principal)";
 
-  $("balanceIngresos").textContent =
-    money(ing);
-
-  $("balanceGastos").textContent =
-    money(gas);
-
-  $("balanceAhorro").textContent =
-    money(ahorro);
-
-  $("balanceDisponible").textContent =
-    money(disponible);
-
-  $("balanceDisponible").style.color =
-    disponible < 0
-      ? "var(--rojo)"
-      : "var(--principal)";
-}
+  
 
 /* =========================================================
    CATEGORÍAS
