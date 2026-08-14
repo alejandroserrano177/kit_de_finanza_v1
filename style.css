@@ -552,3 +552,75 @@ input:focus, select:focus {
   opacity: .55;
   pointer-events: none;
 }
+.fijo-item {
+  position: relative;
+  overflow: hidden;
+  transition: .25s ease;
+}
+
+.fijo-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--borde);
+  transition: .25s ease;
+}
+
+/* PAGADO */
+.fijo-item.pagado {
+  opacity: 1;
+  border-color: #bbf7d0;
+  background: var(--verde-suave);
+}
+
+.fijo-item.pagado::before {
+  background: var(--verde);
+}
+
+/* PENDIENTE */
+.fijo-item:not(.pagado):not(.atrasado) {
+  border-color: var(--borde);
+}
+
+.fijo-item:not(.pagado):not(.atrasado)::before {
+  background: var(--amarillo);
+}
+
+/* VENCIDO / ATRASADO */
+.fijo-item.atrasado {
+  border-color: #fed7aa;
+  background: var(--amarillo-suave);
+}
+
+.fijo-item.atrasado::before {
+  background: var(--rojo);
+}
+
+/* Barra de progreso */
+.fijo-item.pagado .progreso {
+  background: var(--verde);
+}
+
+.fijo-item.atrasado .progreso {
+  background: var(--rojo);
+}
+
+/* Botones */
+.fijo-item.pagado .boton-secundario {
+  background: var(--verde-suave);
+  color: var(--verde);
+}
+
+.fijo-item.atrasado .boton-secundario {
+  background: var(--rojo-suave);
+  color: var(--rojo);
+}
+
+/* Efecto al pasar el mouse */
+.fijo-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra);
+}
