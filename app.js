@@ -1,3 +1,4 @@
+```javascript
 const $ = id => document.getElementById(id);
 
 const money = n =>
@@ -559,6 +560,10 @@ function mostrarApp() {
     .style.display =
     "none";
 
+  $("formularioNuevaPassword")
+    .style.display =
+    "none";
+
   $("app")
     .style.display =
     "block";
@@ -616,6 +621,11 @@ async function cerrarSesion() {
   cerrarPaneles();
 
 
+  $("formularioNuevaPassword")
+    .style.display =
+    "none";
+
+
   $("app")
     .style.display =
     "none";
@@ -667,7 +677,7 @@ function mensaje(
 
 
 /* =========================================================
-   LOGIN / REGISTRO
+   LOGIN / REGISTRO / RECUPERACIÓN
    ========================================================= */
 
 $("tabLogin").onclick =
@@ -688,6 +698,16 @@ $("tabLogin").onclick =
     $("formRegistro")
       .style.display =
       "none";
+
+
+    $("formRecuperarPassword")
+      .style.display =
+      "none";
+
+
+    $("recuperarMensaje")
+      .textContent =
+      "";
   };
 
 
@@ -707,6 +727,11 @@ $("tabRegistro").onclick =
 
 
     $("formLogin")
+      .style.display =
+      "none";
+
+
+    $("formRecuperarPassword")
       .style.display =
       "none";
   };
@@ -823,12 +848,6 @@ $("formRegistro").onsubmit =
       );
     }
 
-
-    /*
-     * Si Supabase tiene activada la confirmación
-     * por correo, puede crear el usuario pero
-     * no entregar una sesión todavía.
-     */
 
     if (!data.session) {
 
@@ -950,6 +969,261 @@ $("formLogin").onsubmit =
 
 
     mostrarApp();
+  };
+
+
+/* =========================================================
+   RECUPERACIÓN DE CONTRASEÑA
+   ========================================================= */
+
+function mostrarRecuperacion() {
+
+  $("formLogin")
+    .style.display =
+    "none";
+
+  $("formRegistro")
+    .style.display =
+    "none";
+
+  $("formRecuperarPassword")
+    .style.display =
+    "block";
+
+  $("tabLogin")
+    .classList.remove("activo");
+
+  $("tabRegistro")
+    .classList.remove("activo");
+
+  $("recuperarCorreo")
+    .value =
+    $("loginCorreo")
+      .value
+      .trim()
+      .toLowerCase();
+
+  $("recuperarCorreo")
+    .focus();
+}
+
+
+function volverLogin() {
+
+  $("formRecuperarPassword")
+    .style.display =
+    "none";
+
+  $("formLogin")
+    .style.display =
+    "block";
+
+  $("formRegistro")
+    .style.display =
+    "none";
+
+  $("tabLogin")
+    .classList.add("activo");
+
+  $("tabRegistro")
+    .classList.remove("activo");
+
+  $("recuperarMensaje")
+    .textContent =
+    "";
+}
+
+
+$("botonRecuperarPassword")
+  .onclick =
+  mostrarRecuperacion;
+
+
+$("volverLoginDesdeRecuperacion")
+  .onclick =
+  volverLogin;
+
+
+/* =========================================================
+   ENVIAR CORREO DE RECUPERACIÓN
+   ========================================================= */
+
+$("formRecuperarPassword").onsubmit =
+  async e => {
+
+    e.preventDefault();
+
+
+    const correo =
+      $("recuperarCorreo")
+        .value
+        .trim()
+        .toLowerCase();
+
+
+    if (!correo) {
+
+      return mensaje(
+        "recuperarMensaje",
+        "Escribe tu correo.",
+        true
+      );
+    }
+
+
+    const redirectTo =
+      `${window.location.origin}${window.location.pathname}`;
+
+
+    const {
+      error
+    } =
+      await supabaseClient.auth.resetPasswordForEmail(
+        correo,
+        {
+          redirectTo
+        }
+      );
+
+
+    if (error) {
+
+      console.error(
+        "Error recuperación contraseña:",
+        error
+      );
+
+      return mensaje(
+        "recuperarMensaje",
+        "No se pudo enviar el enlace de recuperación.",
+        true
+      );
+    }
+
+
+    mensaje(
+      "recuperarMensaje",
+      "Si el correo existe, recibirás un enlace para cambiar tu contraseña."
+    );
+  };
+
+
+/* =========================================================
+   MOSTRAR NUEVA CONTRASEÑA
+   ========================================================= */
+
+function mostrarNuevaPassword() {
+
+  $("pantallaAuth")
+    .style.display =
+    "none";
+
+
+  $("app")
+    .style.display =
+    "none";
+
+
+  $("formularioNuevaPassword")
+    .style.display =
+    "block";
+}
+
+
+/* =========================================================
+   CAMBIAR CONTRASEÑA
+   ========================================================= */
+
+$("formNuevaPassword").onsubmit =
+  async e => {
+
+    e.preventDefault();
+
+
+    const p1 =
+      $("nuevaPassword")
+        .value;
+
+
+    const p2 =
+      $("nuevaPassword2")
+        .value;
+
+
+    if (p1.length < 6) {
+
+      return mensaje(
+        "nuevaPasswordMensaje",
+        "La contraseña debe tener al menos 6 caracteres.",
+        true
+      );
+    }
+
+
+    if (p1 !== p2) {
+
+      return mensaje(
+        "nuevaPasswordMensaje",
+        "Las contraseñas no coinciden.",
+        true
+      );
+    }
+
+
+    const {
+      error
+    } =
+      await supabaseClient.auth.updateUser({
+
+        password:
+          p1
+
+      });
+
+
+    if (error) {
+
+      console.error(
+        "Error cambiando contraseña:",
+        error
+      );
+
+      return mensaje(
+        "nuevaPasswordMensaje",
+        "No se pudo actualizar la contraseña.",
+        true
+      );
+    }
+
+
+    mensaje(
+      "nuevaPasswordMensaje",
+      "Contraseña actualizada correctamente."
+    );
+
+
+    setTimeout(
+      async () => {
+
+        await supabaseClient.auth.signOut();
+
+        $("formularioNuevaPassword")
+          .style.display =
+          "none";
+
+        $("pantallaAuth")
+          .style.display =
+          "flex";
+
+        $("app")
+          .style.display =
+          "none";
+
+        $("tabLogin").click();
+
+      },
+      1200
+    );
   };
 
 
@@ -3080,7 +3354,7 @@ $("formEdicion").onsubmit =
       ) {
 
         return alert(
-          `No puedes guardar este retiro. Tu ahorro disponible sería insuficiente.`
+          "No puedes guardar este retiro. Tu ahorro disponible sería insuficiente."
         );
       }
     }
@@ -3770,7 +4044,7 @@ $("guardarLimitesDistribucion")
 
 
 /* =========================================================
-   FILTROS
+   FILTROS E HISTORIAL
    ========================================================= */
 
 $("filtroCategoria")
@@ -4074,7 +4348,7 @@ $("botonConfiguracion")
 
 
 /* =========================================================
-   INICIO / SESIÓN SUPABASE
+   SESIÓN SUPABASE
    ========================================================= */
 
 async function iniciarAplicacion() {
@@ -4194,7 +4468,7 @@ async function iniciarAplicacion() {
 
 
 /* =========================================================
-   OBSERVAR CAMBIOS DE SESIÓN
+   CAMBIOS DE SESIÓN SUPABASE
    ========================================================= */
 
 supabaseClient.auth.onAuthStateChange(
@@ -4202,6 +4476,17 @@ supabaseClient.auth.onAuthStateChange(
     event,
     session
   ) => {
+
+    if (
+      event ===
+      "PASSWORD_RECOVERY"
+    ) {
+
+      mostrarNuevaPassword();
+
+      return;
+    }
+
 
     if (
       event ===
@@ -4252,7 +4537,7 @@ supabaseClient.auth.onAuthStateChange(
 
 
 /* =========================================================
-   INICIAR
+   INICIO
    ========================================================= */
 
 $("tipoSalida")
@@ -4323,3 +4608,4 @@ if (
     }
   );
 }
+```
