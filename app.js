@@ -1,29 +1,14 @@
+```javascript
 const $ = id => document.getElementById(id);
 
-const money = n =>
-  "$" + Number(n || 0).toFixed(2);
+const money = n => "$" + Number(n || 0).toFixed(2);
 
-
-/* =========================================================
-   SUPABASE AUTH
-   ========================================================= */
-
-const SUPABASE_URL =
-  "https://qbyrgjkyemdnqortkxcc.supabase.co";
-
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_CyU2fuL97wQwdahYgXil0Q_RN0-IYr2";
-
-const supabaseClient =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-  );
-
-
-/* =========================================================
-   CONFIGURACIÓN LOCAL ACTUAL
-   ========================================================= */
+const SUPABASE_URL = "https://qbyrgjkyemdnqortkxcc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CyU2fuL97wQwdahYgXil0Q_RN0-IYr2";
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 
 const USERS_KEY = "kf_usuarios_v2";
 const SESSION_KEY = "kf_sesion_v2";
@@ -71,33 +56,10 @@ let distribucion = [];
 
 
 /* =========================================================
-   SEGURIDAD / LOCALSTORAGE
+   LOCALSTORAGE
    ========================================================= */
 
-async function hashPassword(password) {
-
-  const data =
-    new TextEncoder().encode(password);
-
-  const hash =
-    await crypto.subtle.digest(
-      "SHA-256",
-      data
-    );
-
-  return [...new Uint8Array(hash)]
-    .map(
-      b =>
-        b.toString(16).padStart(2, "0")
-    )
-    .join("");
-}
-
-
-function leerLocal(
-  key,
-  fallback = null
-) {
+function leerLocal(key, fallback = null) {
 
   try {
 
@@ -115,10 +77,7 @@ function leerLocal(
 }
 
 
-function escribirLocal(
-  key,
-  value
-) {
+function escribirLocal(key, value) {
 
   try {
 
@@ -151,9 +110,7 @@ function usuarios() {
 }
 
 
-function guardarUsuarios(
-  lista
-) {
+function guardarUsuarios(lista) {
 
   return escribirLocal(
     USERS_KEY,
@@ -245,6 +202,7 @@ function hoyISO() {
 function parseFechaLocal(valor) {
 
   if (!valor) {
+
     return new Date();
   }
 
@@ -282,19 +240,18 @@ function parseFechaLocal(valor) {
 
 function fechaTexto(v) {
 
-  if (!v) return "";
-
-  return parseFechaLocal(v)
-    .toLocaleDateString(
-      "es-EC"
-    );
+  return v
+    ? parseFechaLocal(v)
+        .toLocaleDateString("es-EC")
+    : "";
 }
 
 
 function fechaISO(valor) {
 
-  return String(valor || "")
-    .slice(0, 10);
+  return String(
+    valor || ""
+  ).slice(0, 10);
 }
 
 
@@ -304,14 +261,16 @@ function fechaISO(valor) {
 
 function escapeHtml(s) {
 
-  return String(s ?? "").replace(
+  return String(
+    s ?? ""
+  ).replace(
     /[&<>"']/g,
     c =>
       ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
-        "\"": "&quot;",
+        '"': "&quot;",
         "'": "&#039;"
       }[c])
   );
@@ -324,11 +283,21 @@ function crearCategoriasDefault() {
     DEFAULT_CATEGORIAS
   ).map(
     ([id, v]) => ({
+
       id,
-      nombre: v[1],
-      icono: v[0],
-      limite: v[2],
-      activo: true
+
+      nombre:
+        v[1],
+
+      icono:
+        v[0],
+
+      limite:
+        v[2],
+
+      activo:
+        true
+
     })
   );
 }
@@ -338,9 +307,12 @@ function crearFijosDefault() {
 
   return DEFAULT_GASTOS_FIJOS.map(
     g => ({
+
       ...g,
+
       creado:
         new Date().toISOString()
+
     })
   );
 }
@@ -354,49 +326,53 @@ function migrarEstructuras() {
 
   movimientos =
     Array.isArray(movimientos)
-      ? movimientos.map(m => ({
+      ? movimientos.map(
+          m => ({
 
-          ...m,
+            ...m,
 
-          id:
-            m.id ||
-            crypto.randomUUID(),
+            id:
+              m.id ||
+              crypto.randomUUID(),
 
-          fecha:
-            fechaISO(m.fecha) ||
-            hoyISO(),
+            fecha:
+              fechaISO(m.fecha) ||
+              hoyISO(),
 
-          monto:
-            Number(m.monto) || 0
+            monto:
+              Number(m.monto) || 0
 
-        }))
+          })
+        )
       : [];
 
 
   gastosFijos =
     Array.isArray(gastosFijos)
-      ? gastosFijos.map(g => ({
+      ? gastosFijos.map(
+          g => ({
 
-          ...g,
+            ...g,
 
-          id:
-            g.id ||
-            crypto.randomUUID(),
+            id:
+              g.id ||
+              crypto.randomUUID(),
 
-          activo:
-            g.activo !== false,
+            activo:
+              g.activo !== false,
 
-          creado:
-            g.creado ||
-            new Date().toISOString(),
+            creado:
+              g.creado ||
+              new Date().toISOString(),
 
-          monto:
-            Number(g.monto) || 0,
+            monto:
+              Number(g.monto) || 0,
 
-          dia:
-            Number(g.dia) || 1
+            dia:
+              Number(g.dia) || 1
 
-        }))
+          })
+        )
       : [];
 
 
@@ -406,14 +382,18 @@ function migrarEstructuras() {
       : [];
 
 
-  if (!distribucion.length) {
+  if (
+    !distribucion.length
+  ) {
 
     distribucion =
       crearCategoriasDefault();
   }
 
 
-  if (!gastosFijos.length) {
+  if (
+    !gastosFijos.length
+  ) {
 
     gastosFijos =
       crearFijosDefault();
@@ -425,7 +405,7 @@ function migrarEstructuras() {
 
 
 /* =========================================================
-   CARGAR DATOS DEL USUARIO
+   CARGAR DATOS
    ========================================================= */
 
 function cargarDatos() {
@@ -454,7 +434,9 @@ function cargarDatos() {
     );
 
 
-  if (!Array.isArray(distribucion)) {
+  if (
+    !Array.isArray(distribucion)
+  ) {
 
     distribucion =
       crearCategoriasDefault();
@@ -472,9 +454,16 @@ function cargarDatos() {
     .forEach(x => {
 
       categorias[x.id] = [
-        x.icono || "📦",
+
+        x.icono ||
+        "📦",
+
         x.nombre,
-        Number(x.limite) || 0
+
+        Number(
+          x.limite
+        ) || 0
+
       ];
 
     });
@@ -514,6 +503,7 @@ function cerrarPaneles() {
       el.style.display =
         "none";
     }
+
   });
 
 
@@ -529,21 +519,52 @@ function cerrarPaneles() {
 
   try {
 
-    $("fijoId").value = "";
+    $("fijoId")
+      .value = "";
 
   } catch {}
 
 
   try {
 
-    $("tipoSalida").value =
+    $("tipoSalida")
+      .value =
       "gasto";
 
-    $("tipoSalida").dispatchEvent(
-      new Event("change")
-    );
+    $("tipoSalida")
+      .dispatchEvent(
+        new Event("change")
+      );
 
   } catch {}
+}
+
+
+/* =========================================================
+   MENSAJES
+   ========================================================= */
+
+function mensaje(
+  id,
+  texto,
+  error = false
+) {
+
+  const el =
+    $(id);
+
+  if (!el) return;
+
+  el.textContent =
+    texto;
+
+  el.className =
+    "auth-mensaje" +
+    (
+      error
+        ? " error"
+        : ""
+    );
 }
 
 
@@ -559,9 +580,14 @@ function mostrarApp() {
     .style.display =
     "none";
 
-  $("formularioNuevaPassword")
-    .style.display =
-    "none";
+  if (
+    $("formularioNuevaPassword")
+  ) {
+
+    $("formularioNuevaPassword")
+      .style.display =
+      "none";
+  }
 
   $("app")
     .style.display =
@@ -570,7 +596,7 @@ function mostrarApp() {
 
   $("usuarioActual")
     .textContent =
-      `Cuenta: ${usuario.nombre} · ${usuario.correo}`;
+    `Cuenta: ${usuario.nombre} · ${usuario.correo}`;
 
 
   cerrarPaneles();
@@ -589,12 +615,14 @@ async function cerrarSesion() {
 
   try {
 
-    await supabaseClient.auth.signOut();
+    await supabaseClient
+      .auth
+      .signOut();
 
   } catch (error) {
 
     console.error(
-      "Error cerrando sesión Supabase:",
+      "Error cerrando sesión:",
       error
     );
   }
@@ -620,9 +648,14 @@ async function cerrarSesion() {
   cerrarPaneles();
 
 
-  $("formularioNuevaPassword")
-    .style.display =
-    "none";
+  if (
+    $("formularioNuevaPassword")
+  ) {
+
+    $("formularioNuevaPassword")
+      .style.display =
+      "none";
+  }
 
 
   $("app")
@@ -635,14 +668,17 @@ async function cerrarSesion() {
     "flex";
 
 
-  $("formLogin").reset();
+  $("formLogin")
+    .reset();
+
 
   $("loginMensaje")
     .textContent =
     "";
 
 
-  $("tabLogin").click();
+  $("tabLogin")
+    .click();
 }
 
 
@@ -652,83 +688,58 @@ $("botonCerrarSesion")
 
 
 /* =========================================================
-   MENSAJES
+   LOGIN / REGISTRO
    ========================================================= */
 
-function mensaje(
-  id,
-  texto,
-  error = false
-) {
-
-  const el =
-    $(id);
-
-  if (!el) return;
-
-  el.textContent =
-    texto;
-
-  el.className =
-    "auth-mensaje" +
-    (error ? " error" : "");
-}
-
-
-/* =========================================================
-   LOGIN / REGISTRO / RECUPERACIÓN
-   ========================================================= */
-
-$("tabLogin").onclick =
+$("tabLogin")
+  .onclick =
   () => {
 
     $("tabLogin")
-      .classList.add("activo");
+      .classList.add(
+        "activo"
+      );
 
     $("tabRegistro")
-      .classList.remove("activo");
-
+      .classList.remove(
+        "activo"
+      );
 
     $("formLogin")
       .style.display =
       "block";
 
-
     $("formRegistro")
       .style.display =
       "none";
-
 
     $("formRecuperarPassword")
       .style.display =
       "none";
-
-
-    $("recuperarMensaje")
-      .textContent =
-      "";
   };
 
 
-$("tabRegistro").onclick =
+$("tabRegistro")
+  .onclick =
   () => {
 
     $("tabRegistro")
-      .classList.add("activo");
+      .classList.add(
+        "activo"
+      );
 
     $("tabLogin")
-      .classList.remove("activo");
-
+      .classList.remove(
+        "activo"
+      );
 
     $("formRegistro")
       .style.display =
       "block";
 
-
     $("formLogin")
       .style.display =
       "none";
-
 
     $("formRecuperarPassword")
       .style.display =
@@ -737,10 +748,11 @@ $("tabRegistro").onclick =
 
 
 /* =========================================================
-   REGISTRO — SUPABASE AUTH
+   REGISTRO
    ========================================================= */
 
-$("formRegistro").onsubmit =
+$("formRegistro")
+  .onsubmit =
   async e => {
 
     e.preventDefault();
@@ -803,23 +815,25 @@ $("formRegistro").onsubmit =
       data,
       error
     } =
-      await supabaseClient.auth.signUp({
+      await supabaseClient
+        .auth
+        .signUp({
 
-        email:
-          correo,
+          email:
+            correo,
 
-        password:
-          p1,
+          password:
+            p1,
 
-        options: {
+          options: {
 
-          data: {
-            nombre
+            data: {
+              nombre
+            }
+
           }
 
-        }
-
-      });
+        });
 
 
     if (error) {
@@ -838,7 +852,7 @@ $("formRegistro").onsubmit =
     }
 
 
-    if (!data.user) {
+    if (!data?.user) {
 
       return mensaje(
         "registroMensaje",
@@ -863,7 +877,9 @@ $("formRegistro").onsubmit =
         data.user.id,
 
       nombre:
-        data.user.user_metadata?.nombre ||
+        data.user
+          .user_metadata
+          ?.nombre ||
         nombre,
 
       correo:
@@ -884,13 +900,15 @@ $("formRegistro").onsubmit =
 
 
 /* =========================================================
-   LOGIN — SUPABASE AUTH
+   LOGIN
    ========================================================= */
 
-$("formLogin").onsubmit =
+$("formLogin")
+  .onsubmit =
   async e => {
 
     e.preventDefault();
+
 
     const correo =
       $("loginCorreo")
@@ -898,26 +916,32 @@ $("formLogin").onsubmit =
         .trim()
         .toLowerCase();
 
+
     const password =
       $("loginPassword")
         .value;
+
+
+    $("loginMensaje")
+      .textContent =
+      "";
+
 
     const {
       data,
       error
     } =
-      await supabaseClient.auth.signInWithPassword({
-        email: correo,
-        password
-      });
+      await supabaseClient
+        .auth
+        .signInWithPassword({
 
-    console.log(
-      "Resultado login:",
-      {
-        data,
-        error
-      }
-    );
+          email:
+            correo,
+
+          password
+
+        });
+
 
     if (error) {
 
@@ -926,6 +950,7 @@ $("formLogin").onsubmit =
         error
       );
 
+
       if (
         error.code ===
         "email_not_confirmed"
@@ -933,10 +958,11 @@ $("formLogin").onsubmit =
 
         return mensaje(
           "loginMensaje",
-          "Tu correo todavía no está confirmado. Revisa el correo de confirmación.",
+          "Tu correo todavía no está confirmado.",
           true
         );
       }
+
 
       return mensaje(
         "loginMensaje",
@@ -945,6 +971,7 @@ $("formLogin").onsubmit =
         true
       );
     }
+
 
     if (!data?.user) {
 
@@ -955,13 +982,16 @@ $("formLogin").onsubmit =
       );
     }
 
+
     usuario = {
 
       id:
         data.user.id,
 
       nombre:
-        data.user.user_metadata?.nombre ||
+        data.user
+          .user_metadata
+          ?.nombre ||
         data.user.email ||
         "Usuario",
 
@@ -971,16 +1001,19 @@ $("formLogin").onsubmit =
 
     };
 
+
     localStorage.setItem(
       SESSION_KEY,
       data.user.id
     );
 
+
     mostrarApp();
   };
 
+
 /* =========================================================
-   RECUPERACIÓN DE CONTRASEÑA
+   RECUPERAR CONTRASEÑA
    ========================================================= */
 
 function mostrarRecuperacion() {
@@ -998,10 +1031,14 @@ function mostrarRecuperacion() {
     "block";
 
   $("tabLogin")
-    .classList.remove("activo");
+    .classList.remove(
+      "activo"
+    );
 
   $("tabRegistro")
-    .classList.remove("activo");
+    .classList.remove(
+      "activo"
+    );
 
   $("recuperarCorreo")
     .value =
@@ -1030,10 +1067,14 @@ function volverLogin() {
     "none";
 
   $("tabLogin")
-    .classList.add("activo");
+    .classList.add(
+      "activo"
+    );
 
   $("tabRegistro")
-    .classList.remove("activo");
+    .classList.remove(
+      "activo"
+    );
 
   $("recuperarMensaje")
     .textContent =
@@ -1051,11 +1092,8 @@ $("volverLoginDesdeRecuperacion")
   volverLogin;
 
 
-/* =========================================================
-   ENVIAR CORREO DE RECUPERACIÓN
-   ========================================================= */
-
-$("formRecuperarPassword").onsubmit =
+$("formRecuperarPassword")
+  .onsubmit =
   async e => {
 
     e.preventDefault();
@@ -1085,12 +1123,14 @@ $("formRecuperarPassword").onsubmit =
     const {
       error
     } =
-      await supabaseClient.auth.resetPasswordForEmail(
-        correo,
-        {
-          redirectTo
-        }
-      );
+      await supabaseClient
+        .auth
+        .resetPasswordForEmail(
+          correo,
+          {
+            redirectTo
+          }
+        );
 
 
     if (error) {
@@ -1116,7 +1156,7 @@ $("formRecuperarPassword").onsubmit =
 
 
 /* =========================================================
-   MOSTRAR NUEVA CONTRASEÑA
+   NUEVA CONTRASEÑA
    ========================================================= */
 
 function mostrarNuevaPassword() {
@@ -1125,11 +1165,9 @@ function mostrarNuevaPassword() {
     .style.display =
     "none";
 
-
   $("app")
     .style.display =
     "none";
-
 
   $("formularioNuevaPassword")
     .style.display =
@@ -1137,11 +1175,8 @@ function mostrarNuevaPassword() {
 }
 
 
-/* =========================================================
-   CAMBIAR CONTRASEÑA
-   ========================================================= */
-
-$("formNuevaPassword").onsubmit =
+$("formNuevaPassword")
+  .onsubmit =
   async e => {
 
     e.preventDefault();
@@ -1180,20 +1215,17 @@ $("formNuevaPassword").onsubmit =
     const {
       error
     } =
-      await supabaseClient.auth.updateUser({
+      await supabaseClient
+        .auth
+        .updateUser({
 
-        password:
-          p1
+          password:
+            p1
 
-      });
+        });
 
 
     if (error) {
-
-      console.error(
-        "Error cambiando contraseña:",
-        error
-      );
 
       return mensaje(
         "nuevaPasswordMensaje",
@@ -1212,7 +1244,9 @@ $("formNuevaPassword").onsubmit =
     setTimeout(
       async () => {
 
-        await supabaseClient.auth.signOut();
+        await supabaseClient
+          .auth
+          .signOut();
 
         $("formularioNuevaPassword")
           .style.display =
@@ -1226,7 +1260,8 @@ $("formNuevaPassword").onsubmit =
           .style.display =
           "none";
 
-        $("tabLogin").click();
+        $("tabLogin")
+          .click();
 
       },
       1200
@@ -1244,11 +1279,15 @@ function obtenerTotales() {
     movimientos
       .filter(
         m =>
-          m.tipo === "ingreso"
+          m.tipo ===
+          "ingreso"
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto || 0),
+          s +
+          Number(
+            m.monto || 0
+          ),
         0
       );
 
@@ -1257,11 +1296,15 @@ function obtenerTotales() {
     movimientos
       .filter(
         m =>
-          m.tipo === "gasto"
+          m.tipo ===
+          "gasto"
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto || 0),
+          s +
+          Number(
+            m.monto || 0
+          ),
         0
       );
 
@@ -1270,11 +1313,15 @@ function obtenerTotales() {
     movimientos
       .filter(
         m =>
-          m.tipo === "ahorro"
+          m.tipo ===
+          "ahorro"
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto || 0),
+          s +
+          Number(
+            m.monto || 0
+          ),
         0
       );
 
@@ -1283,11 +1330,15 @@ function obtenerTotales() {
     movimientos
       .filter(
         m =>
-          m.tipo === "retiro_ahorro"
+          m.tipo ===
+          "retiro_ahorro"
       )
       .reduce(
         (s, m) =>
-          s + Number(m.monto || 0),
+          s +
+          Number(
+            m.monto || 0
+          ),
         0
       );
 
@@ -1300,12 +1351,15 @@ function obtenerTotales() {
 
     ahorro:
       Math.max(
-        aportes - retiros,
+        aportes -
+        retiros,
         0
       ),
 
     disponible:
-      ing - gas
+      ing -
+      gas
+
   };
 }
 
@@ -1374,12 +1428,9 @@ function renderCategorias() {
   const grid =
     $("gridCategorias");
 
-
   if (!grid) return;
 
-
-  grid.innerHTML =
-    "";
+  grid.innerHTML = "";
 
 
   distribucion
@@ -1387,142 +1438,163 @@ function renderCategorias() {
       x =>
         x.activo !== false
     )
-    .forEach(c => {
+    .forEach(
+      c => {
 
-      const gastos =
-        movimientos
-          .filter(
-            m =>
-              m.tipo === "gasto" &&
-              m.categoria === c.id
-          )
-          .reduce(
-            (s, m) =>
-              s + Number(m.monto || 0),
-            0
+        const gastos =
+          movimientos
+            .filter(
+              m =>
+                m.tipo ===
+                "gasto" &&
+                m.categoria ===
+                c.id
+            )
+            .reduce(
+              (s, m) =>
+                s +
+                Number(
+                  m.monto || 0
+                ),
+              0
+            );
+
+
+        const lim =
+          Number(
+            c.limite
+          ) || 0;
+
+
+        const pct =
+          lim
+            ? Math.min(
+                gastos /
+                  lim *
+                  100,
+                100
+              )
+            : 0;
+
+
+        const ms =
+          movimientos
+            .filter(
+              m =>
+                m.tipo ===
+                  "gasto" &&
+                m.categoria ===
+                  c.id
+            )
+            .sort(
+              (a, b) =>
+                parseFechaLocal(
+                  b.fecha
+                ) -
+                parseFechaLocal(
+                  a.fecha
+                )
+            )
+            .slice(0, 3);
+
+
+        const div =
+          document.createElement(
+            "article"
           );
 
 
-      const lim =
-        Number(c.limite) || 0;
+        div.className =
+          "categoria-card";
 
 
-      const pct =
-        lim
-          ? Math.min(
-              gastos / lim * 100,
-              100
-            )
-          : 0;
+        div.innerHTML = `
 
-
-      const ms =
-        movimientos
-          .filter(
-            m =>
-              m.tipo === "gasto" &&
-              m.categoria === c.id
-          )
-          .sort(
-            (a, b) =>
-              parseFechaLocal(b.fecha) -
-              parseFechaLocal(a.fecha)
-          )
-          .slice(0, 3);
-
-
-      const div =
-        document.createElement(
-          "article"
-        );
-
-
-      div.className =
-        "categoria-card";
-
-
-      div.innerHTML = `
-
-        <div class="categoria-icono">
-          ${escapeHtml(
-            c.icono || "📦"
-          )}
-        </div>
-
-        <div class="categoria-info">
-
-          <h3>
+          <div class="categoria-icono">
             ${escapeHtml(
-              c.nombre
+              c.icono ||
+              "📦"
             )}
-          </h3>
+          </div>
 
-          <p>
-            ${money(gastos)}
-            /
-            ${money(lim)}
-          </p>
+          <div class="categoria-info">
 
-        </div>
+            <h3>
+              ${escapeHtml(
+                c.nombre
+              )}
+            </h3>
 
-        <div class="barra">
+            <p>
+              ${money(gastos)}
+              /
+              ${money(lim)}
+            </p>
 
-          <div
-            class="progreso"
-            style="width:${pct}%"
-          ></div>
+          </div>
 
-        </div>
+          <div class="barra">
 
-        <small>
-          ${
-            lim
-              ? `${Math.round(pct)}% utilizado`
-              : "Sin límite definido"
-          }
-        </small>
+            <div
+              class="progreso"
+              style="width:${pct}%"
+            ></div>
 
-        <div class="movimientos">
+          </div>
 
-          ${
-            ms.length
-              ? ms
-                  .map(
-                    m => `
+          <small>
+            ${
+              lim
+                ? `${Math.round(pct)}% utilizado`
+                : "Sin límite definido"
+            }
+          </small>
 
-                      <div class="movimiento">
+          <div class="movimientos">
 
-                        <span>
-                          ${escapeHtml(
-                            m.descripcion ||
-                            c.nombre
-                          )}
-                        </span>
+            ${
+              ms.length
+                ? ms
+                    .map(
+                      m => `
 
-                        <span>
-                          ${money(
-                            m.monto
-                          )}
-                        </span>
+                        <div class="movimiento">
 
-                      </div>
+                          <span>
+                            ${escapeHtml(
+                              m.descripcion ||
+                              c.nombre
+                            )}
+                          </span>
 
-                    `
-                  )
-                  .join("")
-              : `
-                  <small>
-                    Sin movimientos
-                  </small>
-                `
-          }
+                          <span>
+                            ${money(
+                              m.monto
+                            )}
+                          </span>
 
-        </div>
-      `;
+                        </div>
+
+                      `
+                    )
+                    .join("")
+                : `
+                    <small>
+                      Sin movimientos
+                    </small>
+                  `
+            }
+
+          </div>
+
+        `;
 
 
-      grid.appendChild(div);
-    });
+        grid.appendChild(
+          div
+        );
+      }
+    );
 }
 
 
@@ -1551,7 +1623,6 @@ function getFixedProgress(
   const y =
     refDate.getFullYear();
 
-
   const m =
     refDate.getMonth();
 
@@ -1560,39 +1631,50 @@ function getFixedProgress(
     movimientos
       .filter(
         x =>
-          x.tipo === "gasto" &&
-          x.origenFijo === g.id
+          x.tipo ===
+          "gasto" &&
+          x.origenFijo ===
+          g.id
       )
-      .filter(x => {
+      .filter(
+        x => {
 
-        const d =
-          parseFechaLocal(
-            x.fecha
+          const d =
+            parseFechaLocal(
+              x.fecha
+            );
+
+          return (
+            d.getFullYear() ===
+              y &&
+            d.getMonth() ===
+              m
           );
-
-
-        return (
-          d.getFullYear() === y &&
-          d.getMonth() === m
-        );
-      });
+        }
+      );
 
 
   const pagado =
     pagos.reduce(
       (s, x) =>
-        s + Number(x.monto || 0),
+        s +
+        Number(
+          x.monto || 0
+        ),
       0
     );
 
 
   const objetivo =
-    Number(g.monto) || 0;
+    Number(
+      g.monto
+    ) || 0;
 
 
   const pendiente =
     Math.max(
-      objetivo - pagado,
+      objetivo -
+      pagado,
       0
     );
 
@@ -1611,7 +1693,9 @@ function getFixedProgress(
   const diaVencimiento =
     Math.min(
       Math.max(
-        Number(g.dia) || 1,
+        Number(
+          g.dia
+        ) || 1,
         1
       ),
       daysInMonth(
@@ -1633,7 +1717,8 @@ function getFixedProgress(
 
 
   const completa =
-    pagado >= objetivo &&
+    pagado >=
+      objetivo &&
     objetivo > 0;
 
 
@@ -1646,7 +1731,8 @@ function getFixedProgress(
       "pagado";
 
   } else if (
-    new Date() > venc
+    new Date() >
+    venc
   ) {
 
     estado =
@@ -1671,18 +1757,13 @@ function getFixedProgress(
   return {
 
     pagos,
-
     pagado,
-
     objetivo,
-
     pendiente,
-
     pct,
-
     venc,
-
     estado
+
   };
 }
 
@@ -1696,7 +1777,6 @@ function estadoFechaPago(
     parseFechaLocal(
       fecha
     );
-
 
   const v =
     new Date(venc);
@@ -1713,16 +1793,21 @@ function estadoFechaPago(
 
 
   if (
-    Math.abs(diff) <= 10
+    Math.abs(diff) <=
+    10
   ) {
 
-    if (diff < 0) {
+    if (
+      diff < 0
+    ) {
 
       return `Pagado ${Math.abs(diff)} día${Math.abs(diff) !== 1 ? "s" : ""} antes`;
     }
 
 
-    if (diff === 0) {
+    if (
+      diff === 0
+    ) {
 
       return "Pagado a tiempo";
     }
@@ -1743,7 +1828,8 @@ function obtenerClaseFijo(
 ) {
 
   if (
-    estado === "pagado"
+    estado ===
+    "pagado"
   ) {
 
     return "pagado";
@@ -1751,8 +1837,10 @@ function obtenerClaseFijo(
 
 
   if (
-    estado === "vencido" ||
-    estado === "parcial-atrasado"
+    estado ===
+      "vencido" ||
+    estado ===
+      "parcial-atrasado"
   ) {
 
     return "atrasado";
@@ -1760,7 +1848,8 @@ function obtenerClaseFijo(
 
 
   if (
-    estado === "parcial"
+    estado ===
+    "parcial"
   ) {
 
     return "parcial";
@@ -1775,7 +1864,7 @@ function obtenerTextoEstadoFijo(
   estado
 ) {
 
-  const estados = {
+  return {
 
     pagado:
       "✓ Pagado",
@@ -1791,11 +1880,9 @@ function obtenerTextoEstadoFijo(
 
     "parcial-atrasado":
       "⚠ Parcial atrasado"
-  };
 
-
-  return estados[estado] ||
-    "Pendiente";
+  }[estado] ||
+  "Pendiente";
 }
 
 
@@ -1804,14 +1891,14 @@ function renderGastosFijos() {
   const box =
     $("listaGastosFijos");
 
-
   if (!box) return;
 
 
   const activos =
     gastosFijos.filter(
       g =>
-        g.activo !== false
+        g.activo !==
+        false
     );
 
 
@@ -1821,7 +1908,9 @@ function renderGastosFijos() {
 
       <div class="historial-vacio">
 
-        <span>📌</span>
+        <span>
+          📌
+        </span>
 
         No hay gastos fijos registrados.
 
@@ -1835,154 +1924,165 @@ function renderGastosFijos() {
 
   box.innerHTML =
     activos
-      .map(g => {
+      .map(
+        g => {
 
-        const p =
-          getFixedProgress(g);
-
-
-        const cl =
-          obtenerClaseFijo(
-            p.estado
-          );
+          const p =
+            getFixedProgress(g);
 
 
-        const pagosInfo =
-          p.pagos.length
+          const pagosInfo =
+            p.pagos.length
 
-            ? p.pagos
-                .slice()
-                .sort(
-                  (a, b) =>
-                    parseFechaLocal(
-                      b.fecha
-                    ) -
-                    parseFechaLocal(
-                      a.fecha
-                    )
-                )
-                .slice(0, 3)
-                .map(
-                  x => `
+              ? p.pagos
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      parseFechaLocal(
+                        b.fecha
+                      ) -
+                      parseFechaLocal(
+                        a.fecha
+                      )
+                  )
+                  .slice(
+                    0,
+                    3
+                  )
+                  .map(
+                    x => `
 
-                    <div class="fijo-pago">
+                      <div class="fijo-pago">
 
-                      ${fechaTexto(
-                        x.fecha
-                      )}
+                        ${fechaTexto(
+                          x.fecha
+                        )}
 
-                      ·
+                        ·
 
-                      ${money(
-                        x.monto
-                      )}
+                        ${money(
+                          x.monto
+                        )}
 
-                      ·
+                        ·
 
-                      ${estadoFechaPago(
-                        x.fecha,
-                        p.venc
-                      )}
+                        ${estadoFechaPago(
+                          x.fecha,
+                          p.venc
+                        )}
 
-                    </div>
+                      </div>
 
-                  `
-                )
-                .join("")
+                    `
+                  )
+                  .join("")
 
-            : `
+              : `
 
-                <div class="fijo-pago">
-                  Sin pagos este mes
+                  <div class="fijo-pago">
+                    Sin pagos este mes
+                  </div>
+
+                `;
+
+
+          return `
+
+            <div
+              class="fijo-item ${obtenerClaseFijo(
+                p.estado
+              )}"
+            >
+
+              <div class="fijo-info">
+
+                <strong>
+                  ${escapeHtml(
+                    g.nombre
+                  )}
+                </strong>
+
+                <small class="fijo-estado">
+                  ${obtenerTextoEstadoFijo(
+                    p.estado
+                  )}
+                </small>
+
+                <small>
+                  Vence día ${g.dia}
+                  ·
+                  ${money(g.monto)}
+                </small>
+
+                <div class="barra">
+
+                  <div
+                    class="progreso"
+                    style="width:${p.pct}%"
+                  ></div>
+
                 </div>
 
-              `;
+                <small>
 
+                  ${money(
+                    p.pagado
+                  )}
+                  /
+                  ${money(
+                    p.objetivo
+                  )}
 
-        return `
+                  · Pendiente
+                  ${money(
+                    p.pendiente
+                  )}
 
-          <div
-            class="fijo-item ${cl}"
-          >
+                </small>
 
-            <div class="fijo-info">
-
-              <strong>
-                ${escapeHtml(
-                  g.nombre
-                )}
-              </strong>
-
-              <small class="fijo-estado">
-                ${obtenerTextoEstadoFijo(
-                  p.estado
-                )}
-              </small>
-
-              <small>
-                Vence día ${g.dia}
-                · ${money(g.monto)}
-              </small>
-
-              <div class="barra">
-
-                <div
-                  class="progreso"
-                  style="width:${p.pct}%"
-                ></div>
+                <div class="fijo-pagos">
+                  ${pagosInfo}
+                </div>
 
               </div>
 
-              <small>
 
-                ${money(p.pagado)}
-                /
-                ${money(p.objetivo)}
+              <div class="fijo-acciones">
 
-                · Pendiente
-                ${money(p.pendiente)}
+                <button
+                  class="boton-secundario boton-pequeno"
+                  onclick="abrirPagoFijo('${g.id}')"
+                  type="button"
+                >
+                  Registrar pago
+                </button>
 
-              </small>
 
-              <div class="fijo-pagos">
-                ${pagosInfo}
+                <button
+                  class="boton-secundario boton-pequeno"
+                  onclick="editarFijo('${g.id}')"
+                  type="button"
+                >
+                  Editar
+                </button>
+
+
+                <button
+                  class="boton-eliminar"
+                  onclick="desactivarFijo('${g.id}')"
+                  type="button"
+                  title="Desactivar gasto fijo"
+                >
+                  ✕
+                </button>
+
               </div>
 
             </div>
 
-            <div class="fijo-acciones">
-
-              <button
-                class="boton-secundario boton-pequeno"
-                onclick="abrirPagoFijo('${g.id}')"
-                type="button"
-              >
-                Registrar pago
-              </button>
-
-              <button
-                class="boton-secundario boton-pequeno"
-                onclick="editarFijo('${g.id}')"
-                type="button"
-              >
-                Editar
-              </button>
-
-              <button
-                class="boton-eliminar"
-                onclick="desactivarFijo('${g.id}')"
-                type="button"
-                title="Desactivar gasto fijo"
-              >
-                ✕
-              </button>
-
-            </div>
-
-          </div>
-
-        `;
-      })
+          `;
+        }
+      )
       .join("");
 }
 
@@ -2009,20 +2109,26 @@ function actualizarSelects() {
       distribucion
         .filter(
           x =>
-            x.activo !== false
+            x.activo !==
+            false
         )
         .map(
           c => `
 
             <option
-              value="${escapeHtml(c.id)}"
+              value="${escapeHtml(
+                c.id
+              )}"
             >
               ${escapeHtml(
-                c.icono || "📦"
+                c.icono ||
+                "📦"
               )}
+
               ${escapeHtml(
                 c.nombre
               )}
+
             </option>
 
           `
@@ -2047,20 +2153,26 @@ function actualizarSelects() {
       distribucion
         .filter(
           x =>
-            x.activo !== false
+            x.activo !==
+            false
         )
         .map(
           c => `
 
             <option
-              value="${escapeHtml(c.id)}"
+              value="${escapeHtml(
+                c.id
+              )}"
             >
               ${escapeHtml(
-                c.icono || "📦"
+                c.icono ||
+                "📦"
               )}
+
               ${escapeHtml(
                 c.nombre
               )}
+
             </option>
 
           `
@@ -2097,19 +2209,24 @@ function actualizarSelects() {
       gastosFijos
         .filter(
           x =>
-            x.activo !== false
+            x.activo !==
+            false
         )
         .map(
           g => `
 
             <option
-              value="${escapeHtml(g.id)}"
+              value="${escapeHtml(
+                g.id
+              )}"
             >
               ${escapeHtml(
                 g.nombre
               )}
               —
-              ${money(g.monto)}
+              ${money(
+                g.monto
+              )}
             </option>
 
           `
@@ -2128,7 +2245,6 @@ function renderMovimientosRecientes() {
   const recientes =
     $("movimientosRecientes");
 
-
   if (!recientes) return;
 
 
@@ -2137,10 +2253,17 @@ function renderMovimientosRecientes() {
       .slice()
       .sort(
         (a, b) =>
-          parseFechaLocal(b.fecha) -
-          parseFechaLocal(a.fecha)
+          parseFechaLocal(
+            b.fecha
+          ) -
+          parseFechaLocal(
+            a.fecha
+          )
       )
-      .slice(0, 3);
+      .slice(
+        0,
+        3
+      );
 
 
   recientes.innerHTML =
@@ -2156,7 +2279,9 @@ function renderMovimientosRecientes() {
 
           <div class="historial-vacio">
 
-            <span>📋</span>
+            <span>
+              📋
+            </span>
 
             No hay movimientos todavía.
 
@@ -2219,23 +2344,32 @@ function renderHistorial(
     movimientos.slice();
 
 
-  if (cat !== "todas") {
+  if (
+    cat !==
+    "todas"
+  ) {
 
     arr =
       arr.filter(
         m =>
-          m.categoria === cat ||
-          m.tipo === cat
+          m.categoria ===
+            cat ||
+          m.tipo ===
+            cat
       );
   }
 
 
-  if (tipo !== "todos") {
+  if (
+    tipo !==
+    "todos"
+  ) {
 
     arr =
       arr.filter(
         m =>
-          m.tipo === tipo
+          m.tipo ===
+          tipo
       );
   }
 
@@ -2245,65 +2379,73 @@ function renderHistorial(
 
 
   if (
-    periodo === "semana"
+    periodo ===
+    "semana"
   ) {
 
     arr =
-      arr.filter(m => {
+      arr.filter(
+        m => {
 
-        const d =
-          parseFechaLocal(
-            m.fecha
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+          const diff =
+            (
+              now -
+              d
+            ) /
+            86400000;
+
+          return (
+            diff >=
+              0 &&
+            diff <=
+              7
           );
-
-
-        const diff =
-          (
-            now -
-            d
-          ) /
-          86400000;
-
-
-        return (
-          diff >= 0 &&
-          diff <= 7
-        );
-      });
+        }
+      );
   }
 
 
   if (
-    periodo === "mes"
+    periodo ===
+    "mes"
   ) {
 
     arr =
-      arr.filter(m => {
+      arr.filter(
+        m => {
 
-        const d =
-          parseFechaLocal(
-            m.fecha
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+          return (
+            d.getMonth() ===
+              now.getMonth() &&
+            d.getFullYear() ===
+              now.getFullYear()
           );
-
-
-        return (
-          d.getMonth() ===
-            now.getMonth() &&
-          d.getFullYear() ===
-            now.getFullYear()
-        );
-      });
+        }
+      );
   }
 
 
   if (
-    periodo === "dia"
+    periodo ===
+    "dia"
   ) {
 
     arr =
       arr.filter(
         m =>
-          fechaISO(m.fecha) ===
+          fechaISO(
+            m.fecha
+          ) ===
           hoyISO()
       );
   }
@@ -2314,7 +2456,9 @@ function renderHistorial(
     arr =
       arr.filter(
         m =>
-          fechaISO(m.fecha) >=
+          fechaISO(
+            m.fecha
+          ) >=
           desde
       );
   }
@@ -2325,7 +2469,9 @@ function renderHistorial(
     arr =
       arr.filter(
         m =>
-          fechaISO(m.fecha) <=
+          fechaISO(
+            m.fecha
+          ) <=
           hasta
       );
   }
@@ -2333,8 +2479,12 @@ function renderHistorial(
 
   arr.sort(
     (a, b) =>
-      parseFechaLocal(b.fecha) -
-      parseFechaLocal(a.fecha)
+      parseFechaLocal(
+        b.fecha
+      ) -
+      parseFechaLocal(
+        a.fecha
+      )
   );
 
 
@@ -2345,13 +2495,15 @@ function renderHistorial(
   if (!completo) {
 
     arr =
-      arr.slice(0, 3);
+      arr.slice(
+        0,
+        3
+      );
   }
 
 
   const box =
     $("historialMovimientos");
-
 
   if (!box) return;
 
@@ -2369,7 +2521,9 @@ function renderHistorial(
 
           <div class="historial-vacio">
 
-            <span>📋</span>
+            <span>
+              📋
+            </span>
 
             No hay movimientos con estos filtros.
 
@@ -2394,14 +2548,18 @@ function renderHistorial(
    RENDER MOVIMIENTO
    ========================================================= */
 
-function renderMovimiento(m) {
+function renderMovimiento(
+  m
+) {
 
   const esIngreso =
-    m.tipo === "ingreso";
+    m.tipo ===
+    "ingreso";
 
 
   const esAhorro =
-    m.tipo === "ahorro";
+    m.tipo ===
+    "ahorro";
 
 
   const esRetiro =
@@ -2500,6 +2658,7 @@ function renderMovimiento(m) {
 
       </div>
 
+
       <div class="movimiento-valor">
 
         <strong
@@ -2512,6 +2671,7 @@ function renderMovimiento(m) {
 
         <br>
 
+
         <button
           class="boton-secundario boton-pequeno"
           onclick="editarMovimiento('${m.id}')"
@@ -2519,6 +2679,7 @@ function renderMovimiento(m) {
         >
           Editar
         </button>
+
 
         <button
           class="boton-eliminar"
@@ -2563,7 +2724,9 @@ function render() {
    FORMULARIOS
    ========================================================= */
 
-function mostrar(id) {
+function mostrar(
+  id
+) {
 
   document
     .querySelectorAll(
@@ -2579,7 +2742,6 @@ function mostrar(id) {
   const el =
     $(id);
 
-
   if (!el) return;
 
 
@@ -2591,8 +2753,10 @@ function mostrar(id) {
 
 
   el.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
+    behavior:
+      "smooth",
+    block:
+      "start"
   });
 }
 
@@ -2620,7 +2784,9 @@ function cerrarFormGasto() {
 
   $("tipoSalida")
     .dispatchEvent(
-      new Event("change")
+      new Event(
+        "change"
+      )
     );
 }
 
@@ -2631,7 +2797,9 @@ function establecerFechasHoy() {
     hoyISO();
 
 
-  if ($("fechaIngreso")) {
+  if (
+    $("fechaIngreso")
+  ) {
 
     $("fechaIngreso")
       .value =
@@ -2639,7 +2807,9 @@ function establecerFechasHoy() {
   }
 
 
-  if ($("fechaGasto")) {
+  if (
+    $("fechaGasto")
+  ) {
 
     $("fechaGasto")
       .value =
@@ -2660,7 +2830,6 @@ function activarTarjeta(
   const el =
     $(id);
 
-
   if (!el) return;
 
 
@@ -2672,8 +2841,10 @@ function activarTarjeta(
     e => {
 
       if (
-        e.key === "Enter" ||
-        e.key === " "
+        e.key ===
+          "Enter" ||
+        e.key ===
+          " "
       ) {
 
         e.preventDefault();
@@ -2704,7 +2875,9 @@ activarTarjeta(
 
     $("tipoSalida")
       .dispatchEvent(
-        new Event("change")
+        new Event(
+          "change"
+        )
       );
 
 
@@ -2726,7 +2899,9 @@ activarTarjeta(
 
     $("tipoSalida")
       .dispatchEvent(
-        new Event("change")
+        new Event(
+          "change"
+        )
       );
 
 
@@ -2758,7 +2933,8 @@ $("cerrarFormularioIngreso")
   };
 
 
-$("formIngreso").onsubmit =
+$("formIngreso")
+  .onsubmit =
   e => {
 
     e.preventDefault();
@@ -2843,7 +3019,8 @@ $("cerrarFormularioGasto")
   cerrarFormGasto;
 
 
-$("tipoSalida").onchange =
+$("tipoSalida")
+  .onchange =
   () => {
 
     const v =
@@ -2918,7 +3095,6 @@ $("tipoSalida").onchange =
         .value =
         "";
 
-
       $("gastoFijoSeleccion")
         .value =
         "";
@@ -2926,7 +3102,8 @@ $("tipoSalida").onchange =
   };
 
 
-$("formGasto").onsubmit =
+$("formGasto")
+  .onsubmit =
   e => {
 
     e.preventDefault();
@@ -2939,7 +3116,8 @@ $("formGasto").onsubmit =
 
     const monto =
       Number(
-        $("monto").value
+        $("monto")
+          .value
       );
 
 
@@ -2960,9 +3138,12 @@ $("formGasto").onsubmit =
 
 
     if (
-      tipo === "gasto" &&
-      !$("categoria").value &&
-      !$("gastoFijoSeleccion").value
+      tipo ===
+        "gasto" &&
+      !$("categoria")
+        .value &&
+      !$("gastoFijoSeleccion")
+        .value
     ) {
 
       return alert(
@@ -2972,8 +3153,10 @@ $("formGasto").onsubmit =
 
 
     if (
-      tipo === "gasto" &&
-      $("gastoFijoSeleccion").value
+      tipo ===
+        "gasto" &&
+      $("gastoFijoSeleccion")
+        .value
     ) {
 
       const g =
@@ -3021,7 +3204,8 @@ $("formGasto").onsubmit =
       });
 
     } else if (
-      tipo === "gasto"
+      tipo ===
+      "gasto"
     ) {
 
       movimientos.push({
@@ -3052,7 +3236,8 @@ $("formGasto").onsubmit =
       });
 
     } else if (
-      tipo === "ahorro"
+      tipo ===
+      "ahorro"
     ) {
 
       movimientos.push({
@@ -3085,11 +3270,16 @@ $("formGasto").onsubmit =
 
 
       if (
-        monto > saldo
+        monto >
+        saldo
       ) {
 
         return alert(
-          `No puedes retirar ${money(monto)} porque tu ahorro disponible es ${money(saldo)}.`
+          `No puedes retirar ${money(
+            monto
+          )} porque tu ahorro disponible es ${money(
+            saldo
+          )}.`
         );
       }
 
@@ -3142,22 +3332,24 @@ window.eliminarMovimiento =
   id => {
 
     if (
-      confirm(
+      !confirm(
         "¿Eliminar este movimiento?"
       )
-    ) {
-
-      movimientos =
-        movimientos.filter(
-          m =>
-            m.id !== id
-        );
+    ) return;
 
 
-      guardarMovimientos();
+    movimientos =
+      movimientos.filter(
+        m =>
+          m.id !==
+          id
+      );
 
-      render();
-    }
+
+    guardarMovimientos();
+
+
+    render();
   };
 
 
@@ -3167,9 +3359,9 @@ window.editarMovimiento =
     const m =
       movimientos.find(
         x =>
-          x.id === id
+          x.id ===
+          id
       );
-
 
     if (!m) return;
 
@@ -3208,20 +3400,27 @@ window.editarMovimiento =
       distribucion
         .filter(
           c =>
-            c.activo !== false
+            c.activo !==
+            false
         )
         .map(
           c => `
 
             <option
-              value="${escapeHtml(c.id)}"
+              value="${escapeHtml(
+                c.id
+              )}"
             >
+
               ${escapeHtml(
-                c.icono || "📦"
+                c.icono ||
+                "📦"
               )}
+
               ${escapeHtml(
                 c.nombre
               )}
+
             </option>
 
           `
@@ -3253,8 +3452,10 @@ window.editarMovimiento =
 
     $("formularioEdicion")
       .scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+        behavior:
+          "smooth",
+        block:
+          "start"
       });
   };
 
@@ -3282,7 +3483,8 @@ $("cancelarEdicion")
   };
 
 
-$("formEdicion").onsubmit =
+$("formEdicion")
+  .onsubmit =
   e => {
 
     e.preventDefault();
@@ -3324,7 +3526,8 @@ $("formEdicion").onsubmit =
 
 
     if (
-      nuevoMonto <= 0
+      nuevoMonto <=
+      0
     ) {
 
       return alert(
@@ -3346,7 +3549,9 @@ $("formEdicion").onsubmit =
       const retiroAnterior =
         m.tipo ===
         "retiro_ahorro"
-          ? Number(m.monto)
+          ? Number(
+              m.monto
+            )
           : 0;
 
 
@@ -3390,7 +3595,8 @@ $("formEdicion").onsubmit =
 
 
     if (
-      nuevoTipo !== "gasto"
+      nuevoTipo !==
+      "gasto"
     ) {
 
       delete m.origenFijo;
@@ -3399,7 +3605,6 @@ $("formEdicion").onsubmit =
 
 
     guardarMovimientos();
-
 
     render();
 
@@ -3462,9 +3667,9 @@ window.editarFijo =
     const g =
       gastosFijos.find(
         x =>
-          x.id === id
+          x.id ===
+          id
       );
-
 
     if (!g) return;
 
@@ -3500,13 +3705,16 @@ window.editarFijo =
 
     $("formGastoFijo")
       .scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+        behavior:
+          "smooth",
+        block:
+          "start"
       });
   };
 
 
-$("formGastoFijo").onsubmit =
+$("formGastoFijo")
+  .onsubmit =
   e => {
 
     e.preventDefault();
@@ -3555,7 +3763,8 @@ $("formGastoFijo").onsubmit =
       const g =
         gastosFijos.find(
           x =>
-            x.id === id
+            x.id ===
+            id
         );
 
 
@@ -3593,6 +3802,7 @@ $("formGastoFijo").onsubmit =
         creado:
           new Date()
             .toISOString()
+
       });
     }
 
@@ -3618,7 +3828,8 @@ window.desactivarFijo =
     const g =
       gastosFijos.find(
         x =>
-          x.id === id
+          x.id ===
+          id
       );
 
 
@@ -3635,6 +3846,7 @@ window.desactivarFijo =
 
       guardarFijos();
 
+
       render();
     }
   };
@@ -3650,7 +3862,9 @@ window.abrirPagoFijo =
 
     $("tipoSalida")
       .dispatchEvent(
-        new Event("change")
+        new Event(
+          "change"
+        )
       );
 
 
@@ -3665,7 +3879,8 @@ window.abrirPagoFijo =
     const g =
       gastosFijos.find(
         x =>
-          x.id === id
+          x.id ===
+          id
       );
 
 
@@ -3751,7 +3966,6 @@ function renderEditorDistribucion() {
   const box =
     $("listaDistribucionEditar");
 
-
   if (!box) return;
 
 
@@ -3759,7 +3973,8 @@ function renderEditorDistribucion() {
     distribucion
       .filter(
         c =>
-          c.activo !== false
+          c.activo !==
+          false
       )
       .map(
         c => `
@@ -3769,9 +3984,9 @@ function renderEditorDistribucion() {
           >
 
             <span>
-
               ${escapeHtml(
-                c.icono || "📦"
+                c.icono ||
+                "📦"
               )}
 
               ${escapeHtml(
@@ -3780,14 +3995,22 @@ function renderEditorDistribucion() {
 
             </span>
 
+
             <input
               type="number"
               min="0"
               step="0.01"
-              value="${Number(c.limite) || 0}"
-              data-id="${escapeHtml(c.id)}"
+              value="${
+                Number(
+                  c.limite
+                ) || 0
+              }"
+              data-id="${escapeHtml(
+                c.id
+              )}"
               title="Monto de control"
             >
+
 
             <button
               class="boton-secundario boton-pequeno"
@@ -3796,6 +4019,7 @@ function renderEditorDistribucion() {
             >
               Editar
             </button>
+
 
             <button
               class="boton-eliminar"
@@ -3820,9 +4044,9 @@ window.editarArea =
     const c =
       distribucion.find(
         x =>
-          x.id === id
+          x.id ===
+          id
       );
-
 
     if (!c) return;
 
@@ -3834,8 +4058,10 @@ window.editarArea =
       );
 
 
-    if (n === null)
-      return;
+    if (
+      n ===
+      null
+    ) return;
 
 
     const nombre =
@@ -3854,12 +4080,14 @@ window.editarArea =
       prompt(
         "Ícono (emoji):",
         c.icono ||
-          "📦"
+        "📦"
       );
 
 
-    if (i === null)
-      return;
+    if (
+      i ===
+      null
+    ) return;
 
 
     c.nombre =
@@ -3877,6 +4105,7 @@ window.editarArea =
 
     renderEditorDistribucion();
 
+
     render();
   };
 
@@ -3885,10 +4114,14 @@ window.eliminarArea =
   id => {
 
     if (
-      distribucion.filter(
-        x =>
-          x.activo !== false
-      ).length <= 1
+      distribucion
+        .filter(
+          x =>
+            x.activo !==
+            false
+        )
+        .length <=
+      1
     ) {
 
       return alert(
@@ -3900,7 +4133,8 @@ window.eliminarArea =
     const c =
       distribucion.find(
         x =>
-          x.id === id
+          x.id ===
+          id
       );
 
 
@@ -3919,6 +4153,7 @@ window.eliminarArea =
 
 
       renderEditorDistribucion();
+
 
       render();
     }
@@ -3960,19 +4195,18 @@ $("formNuevaArea")
     }
 
 
-    const nombreExiste =
+    if (
       distribucion.some(
         c =>
-          c.activo !== false &&
+          c.activo !==
+            false &&
           c.nombre
             .trim()
             .toLowerCase() ===
           nombre
             .toLowerCase()
-      );
-
-
-    if (nombreExiste) {
+      )
+    ) {
 
       return alert(
         "Ya existe un área con ese nombre."
@@ -4005,6 +4239,7 @@ $("formNuevaArea")
 
     renderEditorDistribucion();
 
+
     render();
   };
 
@@ -4017,25 +4252,29 @@ $("guardarLimitesDistribucion")
       .querySelectorAll(
         "#listaDistribucionEditar input[data-id]"
       )
-      .forEach(i => {
+      .forEach(
+        i => {
 
-        const c =
-          distribucion.find(
-            x =>
-              x.id ===
-              i.dataset.id
-          );
-
-
-        if (c) {
-
-          c.limite =
-            Math.max(
-              Number(i.value) || 0,
-              0
+          const c =
+            distribucion.find(
+              x =>
+                x.id ===
+                i.dataset.id
             );
+
+
+          if (c) {
+
+            c.limite =
+              Math.max(
+                Number(
+                  i.value
+                ) || 0,
+                0
+              );
+          }
         }
-      });
+      );
 
 
     guardarDistribucion();
@@ -4051,44 +4290,56 @@ $("guardarLimitesDistribucion")
 
 
 /* =========================================================
-   FILTROS E HISTORIAL
+   FILTROS / HISTORIAL
    ========================================================= */
 
 $("filtroCategoria")
   .onchange =
   () =>
-    renderHistorial(true);
+    renderHistorial(
+      true
+    );
 
 
 $("filtroTipo")
   .onchange =
   () =>
-    renderHistorial(true);
+    renderHistorial(
+      true
+    );
 
 
 $("filtroPeriodo")
   .onchange =
   () =>
-    renderHistorial(true);
+    renderHistorial(
+      true
+    );
 
 
 $("filtroDesde")
   .onchange =
   () =>
-    renderHistorial(true);
+    renderHistorial(
+      true
+    );
 
 
 $("filtroHasta")
   .onchange =
   () =>
-    renderHistorial(true);
+    renderHistorial(
+      true
+    );
 
 
 $("gestionarMovimientos")
   .onclick =
   () => {
 
-    renderHistorial(true);
+    renderHistorial(
+      true
+    );
 
 
     $("seccionHistorial")
@@ -4098,8 +4349,10 @@ $("gestionarMovimientos")
 
     $("seccionHistorial")
       .scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+        behavior:
+          "smooth",
+        block:
+          "start"
       });
   };
 
@@ -4112,11 +4365,6 @@ $("cerrarHistorial")
       .style.display =
       "none";
   };
-
-
-$("seccionHistorial")
-  .style.display =
-  "none";
 
 
 /* =========================================================
@@ -4132,7 +4380,8 @@ function exportar(
 
 
   if (
-    filtro === "semana"
+    filtro ===
+    "semana"
   ) {
 
     arr =
@@ -4150,8 +4399,10 @@ function exportar(
 
 
           return (
-            diff >= 0 &&
-            diff <= 7
+            diff >=
+              0 &&
+            diff <=
+              7
           );
         }
       );
@@ -4159,7 +4410,8 @@ function exportar(
 
 
   if (
-    filtro === "mes"
+    filtro ===
+    "mes"
   ) {
 
     const n =
@@ -4167,28 +4419,34 @@ function exportar(
 
 
     arr =
-      arr.filter(m => {
+      arr.filter(
+        m => {
 
-        const d =
-          parseFechaLocal(
-            m.fecha
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+
+          return (
+            d.getMonth() ===
+              n.getMonth() &&
+            d.getFullYear() ===
+              n.getFullYear()
           );
-
-
-        return (
-          d.getMonth() ===
-            n.getMonth() &&
-          d.getFullYear() ===
-            n.getFullYear()
-        );
-      });
+        }
+      );
   }
 
 
   arr.sort(
     (a, b) =>
-      parseFechaLocal(b.fecha) -
-      parseFechaLocal(a.fecha)
+      parseFechaLocal(
+        b.fecha
+      ) -
+      parseFechaLocal(
+        a.fecha
+      )
   );
 
 
@@ -4221,12 +4479,12 @@ function exportar(
             m.tipo,
 
             m.categoria ===
-            "ahorro"
+              "ahorro"
 
               ? "Ahorro"
 
               : m.categoria ===
-                "retiro_ahorro"
+                  "retiro_ahorro"
 
                 ? "Retiro de ahorro"
 
@@ -4239,19 +4497,24 @@ function exportar(
                     m.categoria
                   ),
 
-            Number(m.monto || 0)
-              .toFixed(2),
+            Number(
+              m.monto ||
+              0
+            ).toFixed(
+              2
+            ),
 
             m.descripcion,
 
             m.tipoGasto ||
-              ""
+            ""
 
           ]
             .map(
               x =>
                 `"${String(
-                  x ?? ""
+                  x ??
+                  ""
                 ).replaceAll(
                   '"',
                   '""'
@@ -4262,17 +4525,13 @@ function exportar(
       .join("\n");
 
 
-  const csv =
-    encabezado +
-    "\n" +
-    filas;
-
-
   const blob =
     new Blob(
       [
         "\ufeff" +
-        csv
+        encabezado +
+        "\n" +
+        filas
       ],
       {
         type:
@@ -4301,9 +4560,13 @@ function exportar(
     `finanzas_${filtro}_${hoyISO()}.csv`;
 
 
-  document.body.appendChild(a);
+  document.body.appendChild(
+    a
+  );
+
 
   a.click();
+
 
   a.remove();
 
@@ -4366,7 +4629,9 @@ async function iniciarAplicacion() {
       data,
       error
     } =
-      await supabaseClient.auth.getSession();
+      await supabaseClient
+        .auth
+        .getSession();
 
 
     if (error) {
@@ -4382,7 +4647,9 @@ async function iniciarAplicacion() {
       data?.session;
 
 
-    if (session?.user) {
+    if (
+      session?.user
+    ) {
 
       const authUser =
         session.user;
@@ -4394,7 +4661,9 @@ async function iniciarAplicacion() {
           authUser.id,
 
         nombre:
-          authUser.user_metadata?.nombre ||
+          authUser
+            .user_metadata
+            ?.nombre ||
           authUser.email ||
           "Usuario",
 
@@ -4413,6 +4682,7 @@ async function iniciarAplicacion() {
 
       mostrarApp();
 
+
       return;
     }
 
@@ -4422,44 +4692,6 @@ async function iniciarAplicacion() {
       "No se pudo consultar Supabase Auth:",
       error
     );
-  }
-
-
-  /*
-   * Compatibilidad temporal con la sesión
-   * local anterior de la V1.
-   */
-
-  let sessionId = null;
-
-
-  try {
-
-    sessionId =
-      localStorage.getItem(
-        SESSION_KEY
-      );
-
-  } catch {}
-
-
-  const u =
-    usuarios().find(
-      x =>
-        x.id ===
-        sessionId
-    );
-
-
-  if (u) {
-
-    usuario =
-      u;
-
-
-    mostrarApp();
-
-    return;
   }
 
 
@@ -4475,72 +4707,76 @@ async function iniciarAplicacion() {
 
 
 /* =========================================================
-   CAMBIOS DE SESIÓN SUPABASE
+   CAMBIOS DE SESIÓN
    ========================================================= */
 
-supabaseClient.auth.onAuthStateChange(
-  (
-    event,
-    session
-  ) => {
+supabaseClient
+  .auth
+  .onAuthStateChange(
+    (
+      event,
+      session
+    ) => {
 
-    if (
-      event ===
-      "PASSWORD_RECOVERY"
-    ) {
+      if (
+        event ===
+        "PASSWORD_RECOVERY"
+      ) {
 
-      mostrarNuevaPassword();
+        mostrarNuevaPassword();
 
-      return;
+        return;
+      }
+
+
+      if (
+        event ===
+        "SIGNED_OUT"
+      ) {
+
+        return;
+      }
+
+
+      if (
+        session?.user &&
+        !usuario
+      ) {
+
+        const authUser =
+          session.user;
+
+
+        usuario = {
+
+          id:
+            authUser.id,
+
+          nombre:
+            authUser
+              .user_metadata
+              ?.nombre ||
+            authUser.email ||
+            "Usuario",
+
+          correo:
+            authUser.email ||
+            ""
+
+        };
+
+
+        localStorage.setItem(
+          SESSION_KEY,
+          authUser.id
+        );
+
+
+        mostrarApp();
+      }
+
     }
-
-
-    if (
-      event ===
-      "SIGNED_OUT"
-    ) {
-
-      return;
-    }
-
-
-    if (
-      session?.user &&
-      !usuario
-    ) {
-
-      const authUser =
-        session.user;
-
-
-      usuario = {
-
-        id:
-          authUser.id,
-
-        nombre:
-          authUser.user_metadata?.nombre ||
-          authUser.email ||
-          "Usuario",
-
-        correo:
-          authUser.email ||
-          ""
-
-      };
-
-
-      localStorage.setItem(
-        SESSION_KEY,
-        authUser.id
-      );
-
-
-      mostrarApp();
-    }
-
-  }
-);
+  );
 
 
 /* =========================================================
@@ -4549,8 +4785,20 @@ supabaseClient.auth.onAuthStateChange(
 
 $("tipoSalida")
   .dispatchEvent(
-    new Event("change")
+    new Event(
+      "change"
+    )
   );
+
+
+if (
+  $("seccionHistorial")
+) {
+
+  $("seccionHistorial")
+    .style.display =
+    "none";
+}
 
 
 establecerFechasHoy();
