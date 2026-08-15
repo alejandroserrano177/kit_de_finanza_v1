@@ -892,32 +892,32 @@ $("formLogin").onsubmit =
 
     e.preventDefault();
 
-
     const correo =
       $("loginCorreo")
         .value
         .trim()
         .toLowerCase();
 
-
     const password =
       $("loginPassword")
         .value;
-
 
     const {
       data,
       error
     } =
       await supabaseClient.auth.signInWithPassword({
-
-        email:
-          correo,
-
+        email: correo,
         password
-
       });
 
+    console.log(
+      "Resultado login:",
+      {
+        data,
+        error
+      }
+    );
 
     if (error) {
 
@@ -926,15 +926,27 @@ $("formLogin").onsubmit =
         error
       );
 
+      if (
+        error.code ===
+        "email_not_confirmed"
+      ) {
+
+        return mensaje(
+          "loginMensaje",
+          "Tu correo todavía no está confirmado. Revisa el correo de confirmación.",
+          true
+        );
+      }
+
       return mensaje(
         "loginMensaje",
-        "Correo o contraseña incorrectos.",
+        error.message ||
+        "No se pudo iniciar sesión.",
         true
       );
     }
 
-
-    if (!data.user) {
+    if (!data?.user) {
 
       return mensaje(
         "loginMensaje",
@@ -942,7 +954,6 @@ $("formLogin").onsubmit =
         true
       );
     }
-
 
     usuario = {
 
@@ -960,16 +971,13 @@ $("formLogin").onsubmit =
 
     };
 
-
     localStorage.setItem(
       SESSION_KEY,
       data.user.id
     );
 
-
     mostrarApp();
   };
-
 
 /* =========================================================
    RECUPERACIÓN DE CONTRASEÑA
