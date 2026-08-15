@@ -75,7 +75,10 @@
 
       </div>
 
-      <!-- LOGIN -->
+
+      <!-- =================================================
+           LOGIN
+           ================================================= -->
 
       <form
         id="formLogin"
@@ -107,6 +110,20 @@
           >
 
           <div
+            class="recuperar-password"
+          >
+
+            <button
+              id="botonRecuperarPassword"
+              class="boton-link"
+              type="button"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+
+          </div>
+
+          <div
             id="loginMensaje"
             class="auth-mensaje"
           ></div>
@@ -122,7 +139,70 @@
 
       </form>
 
-      <!-- REGISTRO -->
+
+      <!-- =================================================
+           RECUPERAR CONTRASEÑA
+           ================================================= -->
+
+      <form
+        id="formRecuperarPassword"
+        class="auth-form"
+        style="display:none"
+      >
+
+        <div class="formulario">
+
+          <span class="etiqueta">
+            RECUPERACIÓN
+          </span>
+
+          <h2>
+            Recuperar contraseña
+          </h2>
+
+          <p class="descripcion-panel">
+            Escribe tu correo y te enviaremos un enlace para cambiar tu contraseña.
+          </p>
+
+          <label for="recuperarCorreo">
+            Correo
+          </label>
+
+          <input
+            id="recuperarCorreo"
+            type="email"
+            required
+            autocomplete="email"
+          >
+
+          <div
+            id="recuperarMensaje"
+            class="auth-mensaje"
+          ></div>
+
+          <button
+            class="boton-principal"
+            type="submit"
+          >
+            Enviar enlace
+          </button>
+
+          <button
+            id="volverLoginDesdeRecuperacion"
+            class="boton-secundario"
+            type="button"
+          >
+            Volver al inicio de sesión
+          </button>
+
+        </div>
+
+      </form>
+
+
+      <!-- =================================================
+           REGISTRO
+           ================================================= -->
 
       <form
         id="formRegistro"
@@ -194,8 +274,9 @@
 
       </form>
 
+
       <small class="auth-nota">
-        Tus datos se guardan localmente en este dispositivo.
+        Tus datos financieros se guardan localmente por ahora.
       </small>
 
     </div>
@@ -966,23 +1047,6 @@
 
 
       <!-- =================================================
-           ACCIONES MOVIMIENTOS
-           ================================================= -->
-
-      <div class="barra-accesos">
-
-        <button
-          id="gestionarMovimientos"
-          class="boton-secundario"
-          type="button"
-        >
-          Gestionar movimientos
-        </button>
-
-      </div>
-
-
-      <!-- =================================================
            MOVIMIENTOS RECIENTES
            ================================================= -->
 
@@ -1018,6 +1082,23 @@
         ></div>
 
       </section>
+
+
+      <!-- =================================================
+           ACCIONES MOVIMIENTOS
+           ================================================= -->
+
+      <div class="barra-accesos">
+
+        <button
+          id="gestionarMovimientos"
+          class="boton-secundario"
+          type="button"
+        >
+          Gestionar movimientos
+        </button>
+
+      </div>
 
 
       <!-- =================================================
@@ -1327,6 +1408,82 @@
     </section>
 
 
+    <!-- =================================================
+         NUEVA CONTRASEÑA
+         ================================================= -->
+
+    <section
+      id="formularioNuevaPassword"
+      class="panel formulario-panel"
+      style="display:none"
+    >
+
+      <div class="panel-titulo">
+
+        <div>
+
+          <span class="etiqueta">
+            SEGURIDAD
+          </span>
+
+          <h2>
+            Crear nueva contraseña
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <form
+        id="formNuevaPassword"
+        class="formulario"
+      >
+
+        <label for="nuevaPassword">
+          Nueva contraseña
+        </label>
+
+        <input
+          id="nuevaPassword"
+          type="password"
+          minlength="6"
+          required
+          autocomplete="new-password"
+        >
+
+
+        <label for="nuevaPassword2">
+          Repetir contraseña
+        </label>
+
+        <input
+          id="nuevaPassword2"
+          type="password"
+          minlength="6"
+          required
+          autocomplete="new-password"
+        >
+
+
+        <div
+          id="nuevaPasswordMensaje"
+          class="auth-mensaje"
+        ></div>
+
+
+        <button
+          class="boton-principal"
+          type="submit"
+        >
+          Guardar nueva contraseña
+        </button>
+
+      </form>
+
+    </section>
+
+
     <footer class="pie">
       Kit de Finanzas · Control personal de tus finanzas
     </footer>
@@ -1334,8 +1491,12 @@
   </main>
 
 
+  <!-- =====================================================
+       SUPABASE + APP
+       ===================================================== -->
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./app.js"></script>
+  <script src="./app.js"></script>
 
 </body>
 </html>
