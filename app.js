@@ -2,12 +2,27 @@ const $ = id => document.getElementById(id);
 
 const money = n => "$" + Number(n || 0).toFixed(2);
 
-const SUPABASE_URL = "https://qbyrgjkyemdnqortkxcc.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CyU2fuL97wQwdahYgXil0Q_RN0-IYr2";
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+
+/* =========================================================
+   SUPABASE AUTH
+   ========================================================= */
+
+const SUPABASE_URL =
+  "https://qbyrgjkyemdnqortkxcc.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_CyU2fuL97wQwdahYgXil0Q_RN0-IYr2";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+/* =========================================================
+   CONFIGURACIÓN LOCAL ACTUAL
+   ========================================================= */
 
 const USERS_KEY = "kf_usuarios_v2";
 const SESSION_KEY = "kf_sesion_v2";
@@ -1164,13 +1179,44 @@ function mostrarNuevaPassword() {
     .style.display =
     "none";
 
+
   $("app")
     .style.display =
-    "none";
+    "block";
+
+
+  document
+    .querySelectorAll(
+      "#app > *"
+    )
+    .forEach(
+      el => {
+
+        if (
+          el.id !==
+          "formularioNuevaPassword"
+        ) {
+
+          el.style.display =
+            "none";
+        }
+
+      }
+    );
+
 
   $("formularioNuevaPassword")
     .style.display =
     "block";
+
+
+  $("formularioNuevaPassword")
+    .scrollIntoView({
+      behavior:
+        "smooth",
+      block:
+        "start"
+    });
 }
 
 
@@ -1226,6 +1272,11 @@ $("formNuevaPassword")
 
     if (error) {
 
+      console.error(
+        "Error cambiando contraseña:",
+        error
+      );
+
       return mensaje(
         "nuevaPasswordMensaje",
         "No se pudo actualizar la contraseña.",
@@ -1247,17 +1298,21 @@ $("formNuevaPassword")
           .auth
           .signOut();
 
+
         $("formularioNuevaPassword")
           .style.display =
           "none";
+
 
         $("pantallaAuth")
           .style.display =
           "flex";
 
+
         $("app")
           .style.display =
           "none";
+
 
         $("tabLogin")
           .click();
@@ -1429,13 +1484,15 @@ function renderCategorias() {
 
   if (!grid) return;
 
+
   grid.innerHTML = "";
 
 
   distribucion
     .filter(
       x =>
-        x.activo !== false
+        x.activo !==
+        false
     )
     .forEach(
       c => {
@@ -1494,7 +1551,10 @@ function renderCategorias() {
                   a.fecha
                 )
             )
-            .slice(0, 3);
+            .slice(
+              0,
+              3
+            );
 
 
         const div =
