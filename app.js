@@ -394,7 +394,7 @@ function movimientoASupabase(m) {
 
     descripcion:
       m.descripcion ||
-      null,
+      "",
 
     tipo_gasto:
       m.tipoGasto ||
