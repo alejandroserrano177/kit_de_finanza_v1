@@ -595,10 +595,6 @@ async function migrarDatosLocalesASupabase() {
       );
 
 
-    /*
-     * Solo hacemos migración si existen datos locales.
-     */
-
     if (
       Array.isArray(categoriasLocales) &&
       categoriasLocales.length
@@ -2593,16 +2589,19 @@ function obtenerTotales() {
 
 
   /*
-   * Los aportes a ahorro cuentan como
-   * salida de dinero dentro del total
-   * de gastos, aunque se mantienen
-   * identificados por separado como ahorro.
+   * Los aportes a ahorro cuentan dentro
+   * del total de salidas mostrado en Gastos.
    */
 
   const gas =
     gastosNormales +
     aportes;
 
+
+  /*
+   * El ahorro acumulado sí descuenta
+   * los retiros de ahorro.
+   */
 
   const ahorro =
     Math.max(
@@ -2612,9 +2611,26 @@ function obtenerTotales() {
     );
 
 
+  /*
+   * EL BALANCE NO CAMBIA CON UN RETIRO
+   * DE AHORRO.
+   *
+   * El retiro solo devuelve al Disponible
+   * dinero que ya estaba apartado.
+   */
+
   const balance =
     ing -
-    gas +
+    gas;
+
+
+  /*
+   * Disponible sí incorpora el dinero
+   * que regresó desde el ahorro.
+   */
+
+  const disponible =
+    balance +
     retiros;
 
 
@@ -2634,8 +2650,7 @@ function obtenerTotales() {
 
     balance,
 
-    disponible:
-      balance
+    disponible
 
   };
 }
