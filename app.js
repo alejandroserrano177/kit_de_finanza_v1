@@ -1,4 +1,4 @@
-```javascript
+
 const $ = id => document.getElementById(id);
 
 const money = n => "$" + Number(n || 0).toFixed(2);
@@ -6537,4 +6537,3 @@ if (
     }
   );
 }
-```
