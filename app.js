@@ -1,10 +1,11 @@
+```javascript
 const $ = id => document.getElementById(id);
 
 const money = n => "$" + Number(n || 0).toFixed(2);
 
 
 /* =========================================================
-   SUPABASE AUTH
+   SUPABASE
    ========================================================= */
 
 const SUPABASE_URL =
@@ -21,7 +22,7 @@ const supabaseClient =
 
 
 /* =========================================================
-   CONFIGURACIÓN LOCAL ACTUAL
+   CONFIGURACIÓN LOCAL
    ========================================================= */
 
 const USERS_KEY = "kf_usuarios_v2";
@@ -67,6 +68,8 @@ let movimientos = [];
 let gastosFijos = [];
 let categorias = {};
 let distribucion = [];
+
+let sincronizando = false;
 
 
 /* =========================================================
@@ -139,57 +142,22 @@ function userKey(nombre) {
 }
 
 
-function guardarDatos() {
+/* =========================================================
+   CONVERSIÓN DE DATOS
+   ========================================================= */
 
-  if (!usuario) return;
+function uuidValido(valor) {
 
-  escribirLocal(
-    userKey("movimientos"),
-    movimientos
-  );
-
-  escribirLocal(
-    userKey("fijos"),
-    gastosFijos
-  );
-
-  escribirLocal(
-    userKey("distribucion"),
-    distribucion
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    .test(
+      String(valor || "")
+    );
 }
 
 
-function guardarMovimientos() {
+function nuevoUUID() {
 
-  if (!usuario) return;
-
-  escribirLocal(
-    userKey("movimientos"),
-    movimientos
-  );
-}
-
-
-function guardarFijos() {
-
-  if (!usuario) return;
-
-  escribirLocal(
-    userKey("fijos"),
-    gastosFijos
-  );
-}
-
-
-function guardarDistribucion() {
-
-  if (!usuario) return;
-
-  escribirLocal(
-    userKey("distribucion"),
-    distribucion
-  );
+  return crypto.randomUUID();
 }
 
 
@@ -333,99 +301,826 @@ function crearFijosDefault() {
 
 
 /* =========================================================
-   MIGRACIÓN
+   GUARDADO LOCAL
    ========================================================= */
 
-function migrarEstructuras() {
+function guardarDatosLocal() {
 
-  movimientos =
-    Array.isArray(movimientos)
-      ? movimientos.map(
-          m => ({
+  if (!usuario) return;
 
-            ...m,
+  escribirLocal(
+    userKey("movimientos"),
+    movimientos
+  );
 
-            id:
-              m.id ||
-              crypto.randomUUID(),
+  escribirLocal(
+    userKey("fijos"),
+    gastosFijos
+  );
 
-            fecha:
-              fechaISO(m.fecha) ||
-              hoyISO(),
-
-            monto:
-              Number(m.monto) || 0
-
-          })
-        )
-      : [];
+  escribirLocal(
+    userKey("distribucion"),
+    distribucion
+  );
+}
 
 
-  gastosFijos =
-    Array.isArray(gastosFijos)
-      ? gastosFijos.map(
+function guardarMovimientosLocal() {
+
+  if (!usuario) return;
+
+  escribirLocal(
+    userKey("movimientos"),
+    movimientos
+  );
+}
+
+
+function guardarFijosLocal() {
+
+  if (!usuario) return;
+
+  escribirLocal(
+    userKey("fijos"),
+    gastosFijos
+  );
+}
+
+
+function guardarDistribucionLocal() {
+
+  if (!usuario) return;
+
+  escribirLocal(
+    userKey("distribucion"),
+    distribucion
+  );
+}
+
+
+/* =========================================================
+   MAPEO DE MOVIMIENTOS
+   ========================================================= */
+
+function movimientoASupabase(m) {
+
+  return {
+
+    id:
+      uuidValido(m.id)
+        ? m.id
+        : nuevoUUID(),
+
+    user_id:
+      usuario.id,
+
+    tipo:
+      m.tipo || "gasto",
+
+    categoria_id:
+      (
+        m.tipo === "gasto" &&
+        uuidValido(m.categoria)
+      )
+        ? m.categoria
+        : null,
+
+    gasto_fijo_id:
+      uuidValido(m.origenFijo)
+        ? m.origenFijo
+        : null,
+
+    monto:
+      Number(m.monto) || 0,
+
+    descripcion:
+      m.descripcion ||
+      null,
+
+    tipo_gasto:
+      m.tipoGasto ||
+      null,
+
+    fecha:
+      fechaISO(m.fecha) ||
+      hoyISO()
+
+  };
+}
+
+
+function movimientoDesdeSupabase(row) {
+
+  return {
+
+    id:
+      row.id,
+
+    tipo:
+      row.tipo,
+
+    categoria:
+      row.categoria_id ||
+      (
+        row.tipo === "ahorro"
+          ? "ahorro"
+          : row.tipo === "retiro_ahorro"
+            ? "retiro_ahorro"
+            : ""
+      ),
+
+    monto:
+      Number(row.monto) || 0,
+
+    descripcion:
+      row.descripcion ||
+      "",
+
+    tipoGasto:
+      row.tipo_gasto ||
+      "",
+
+    fecha:
+      fechaISO(row.fecha),
+
+    origenFijo:
+      row.gasto_fijo_id ||
+      null
+
+  };
+}
+
+
+/* =========================================================
+   MAPEO DE GASTOS FIJOS
+   ========================================================= */
+
+function fijoASupabase(g) {
+
+  return {
+
+    id:
+      uuidValido(g.id)
+        ? g.id
+        : nuevoUUID(),
+
+    user_id:
+      usuario.id,
+
+    nombre:
+      g.nombre,
+
+    monto:
+      Number(g.monto) || 0,
+
+    dia:
+      Number(g.dia) || 1,
+
+    activo:
+      g.activo !== false
+
+  };
+}
+
+
+function fijoDesdeSupabase(row) {
+
+  return {
+
+    id:
+      row.id,
+
+    nombre:
+      row.nombre,
+
+    monto:
+      Number(row.monto) || 0,
+
+    dia:
+      Number(row.dia) || 1,
+
+    activo:
+      row.activo !== false,
+
+    creado:
+      row.created_at ||
+      new Date().toISOString()
+
+  };
+}
+
+
+/* =========================================================
+   MAPEO DE CATEGORÍAS
+   ========================================================= */
+
+function categoriaASupabase(c) {
+
+  return {
+
+    id:
+      uuidValido(c.id)
+        ? c.id
+        : nuevoUUID(),
+
+    user_id:
+      usuario.id,
+
+    nombre:
+      c.nombre,
+
+    icono:
+      c.icono ||
+      "📦",
+
+    limite:
+      Number(c.limite) || 0,
+
+    activo:
+      c.activo !== false
+
+  };
+}
+
+
+function categoriaDesdeSupabase(row) {
+
+  return {
+
+    id:
+      row.id,
+
+    nombre:
+      row.nombre,
+
+    icono:
+      row.icono ||
+      "📦",
+
+    limite:
+      Number(row.limite) || 0,
+
+    activo:
+      row.activo !== false
+
+  };
+}
+
+
+/* =========================================================
+   MIGRACIÓN LOCAL → SUPABASE
+   ========================================================= */
+
+async function migrarDatosLocalesASupabase() {
+
+  if (!usuario) return;
+
+  try {
+
+    const movimientosLocales =
+      leerLocal(
+        userKey("movimientos"),
+        []
+      ) || [];
+
+    const fijosLocales =
+      leerLocal(
+        userKey("fijos"),
+        []
+      ) || [];
+
+    const categoriasLocales =
+      leerLocal(
+        userKey("distribucion"),
+        null
+      );
+
+
+    /*
+     * Solo hacemos migración si existen datos locales.
+     */
+
+    if (
+      Array.isArray(categoriasLocales) &&
+      categoriasLocales.length
+    ) {
+
+      const mapaCategorias =
+        {};
+
+      const categoriasParaSubir =
+        categoriasLocales.map(
+          c => {
+
+            const viejoId =
+              c.id;
+
+            const nuevoId =
+              uuidValido(c.id)
+                ? c.id
+                : nuevoUUID();
+
+            mapaCategorias[viejoId] =
+              nuevoId;
+
+            return {
+
+              id:
+                nuevoId,
+
+              user_id:
+                usuario.id,
+
+              nombre:
+                c.nombre,
+
+              icono:
+                c.icono ||
+                "📦",
+
+              limite:
+                Number(
+                  c.limite
+                ) || 0,
+
+              activo:
+                c.activo !== false
+
+            };
+          }
+        );
+
+
+      const {
+        error
+      } =
+        await supabaseClient
+          .from("categorias")
+          .upsert(
+            categoriasParaSubir,
+            {
+              onConflict:
+                "id"
+            }
+          );
+
+
+      if (error) {
+
+        console.error(
+          "Error migrando categorías:",
+          error
+        );
+
+      } else {
+
+        /*
+         * Actualizamos los IDs locales
+         * de las categorías.
+         */
+
+        distribucion =
+          categoriasLocales.map(
+            c => ({
+
+              ...c,
+
+              id:
+                mapaCategorias[
+                  c.id
+                ] ||
+                c.id
+
+            })
+          );
+
+
+        /*
+         * Actualizamos las categorías
+         * de los movimientos.
+         */
+
+        movimientos =
+          Array.isArray(
+            movimientosLocales
+          )
+            ? movimientosLocales.map(
+                m => ({
+
+                  ...m,
+
+                  id:
+                    uuidValido(m.id)
+                      ? m.id
+                      : nuevoUUID(),
+
+                  categoria:
+                    mapaCategorias[
+                      m.categoria
+                    ] ||
+                    (
+                      uuidValido(
+                        m.categoria
+                      )
+                        ? m.categoria
+                        : m.categoria
+                    )
+
+                })
+              )
+            : [];
+
+      }
+    }
+
+
+    /*
+     * Si no había categorías locales,
+     * utilizamos las categorías que
+     * ya estén en Supabase.
+     */
+
+    if (
+      !distribucion.length
+    ) {
+
+      const {
+        data
+      } =
+        await supabaseClient
+          .from("categorias")
+          .select("*")
+          .eq(
+            "user_id",
+            usuario.id
+          );
+
+      if (
+        Array.isArray(data) &&
+        data.length
+      ) {
+
+        distribucion =
+          data.map(
+            categoriaDesdeSupabase
+          );
+      }
+    }
+
+
+    /*
+     * Migración de gastos fijos.
+     */
+
+    if (
+      Array.isArray(
+        fijosLocales
+      ) &&
+      fijosLocales.length
+    ) {
+
+      gastosFijos =
+        fijosLocales.map(
           g => ({
 
             ...g,
 
             id:
-              g.id ||
-              crypto.randomUUID(),
-
-            activo:
-              g.activo !== false,
-
-            creado:
-              g.creado ||
-              new Date().toISOString(),
-
-            monto:
-              Number(g.monto) || 0,
-
-            dia:
-              Number(g.dia) || 1
+              uuidValido(g.id)
+                ? g.id
+                : nuevoUUID()
 
           })
-        )
-      : [];
+        );
 
 
-  distribucion =
-    Array.isArray(distribucion)
-      ? distribucion
-      : [];
+      const filas =
+        gastosFijos.map(
+          fijoASupabase
+        );
 
 
-  if (
-    !distribucion.length
-  ) {
+      const {
+        error
+      } =
+        await supabaseClient
+          .from("gastos_fijos")
+          .upsert(
+            filas,
+            {
+              onConflict:
+                "id"
+            }
+          );
 
-    distribucion =
-      crearCategoriasDefault();
+
+      if (error) {
+
+        console.error(
+          "Error migrando gastos fijos:",
+          error
+        );
+      }
+    }
+
+
+    /*
+     * Migración de movimientos.
+     */
+
+    if (
+      Array.isArray(
+        movimientos
+      ) &&
+      movimientos.length
+    ) {
+
+      const filas =
+        movimientos.map(
+          movimientoASupabase
+        );
+
+
+      const {
+        error
+      } =
+        await supabaseClient
+          .from("movimientos")
+          .upsert(
+            filas,
+            {
+              onConflict:
+                "id"
+            }
+          );
+
+
+      if (error) {
+
+        console.error(
+          "Error migrando movimientos:",
+          error
+        );
+
+      } else {
+
+        movimientos =
+          filas.map(
+            movimientoDesdeSupabase
+          );
+      }
+    }
+
+
+    guardarDatosLocal();
+
+  } catch (error) {
+
+    console.error(
+      "Error durante migración local:",
+      error
+    );
   }
-
-
-  if (
-    !gastosFijos.length
-  ) {
-
-    gastosFijos =
-      crearFijosDefault();
-  }
-
-
-  guardarDatos();
 }
 
 
 /* =========================================================
-   CARGAR DATOS
+   CARGAR DATOS DESDE SUPABASE
    ========================================================= */
 
-function cargarDatos() {
+async function cargarDatosSupabase() {
 
   if (!usuario) return;
 
+  try {
+
+    /*
+     * CATEGORÍAS
+     */
+
+    const {
+      data:
+        categoriasData,
+      error:
+        categoriasError
+    } =
+      await supabaseClient
+        .from("categorias")
+        .select("*")
+        .eq(
+          "user_id",
+          usuario.id
+        )
+        .order(
+          "created_at",
+          {
+            ascending: true
+          }
+        );
+
+
+    if (categoriasError) {
+
+      console.error(
+        "Error cargando categorías:",
+        categoriasError
+      );
+
+    } else {
+
+      distribucion =
+        (
+          categoriasData || []
+        ).map(
+          categoriaDesdeSupabase
+        );
+    }
+
+
+    /*
+     * Si el usuario todavía no tiene
+     * categorías, creamos las predeterminadas.
+     */
+
+    if (
+      !distribucion.length
+    ) {
+
+      const defaults =
+        crearCategoriasDefault();
+
+
+      const filas =
+        defaults.map(
+          c => ({
+
+            ...categoriaASupabase(c),
+
+            id:
+              nuevoUUID()
+
+          })
+        );
+
+
+      const {
+        data,
+        error
+      } =
+        await supabaseClient
+          .from("categorias")
+          .insert(
+            filas
+          )
+          .select();
+
+
+      if (error) {
+
+        console.error(
+          "Error creando categorías predeterminadas:",
+          error
+        );
+
+        distribucion =
+          defaults;
+
+      } else {
+
+        distribucion =
+          (
+            data || []
+          ).map(
+            categoriaDesdeSupabase
+          );
+      }
+    }
+
+
+    /*
+     * GASTOS FIJOS
+     */
+
+    const {
+      data:
+        fijosData,
+      error:
+        fijosError
+    } =
+      await supabaseClient
+        .from("gastos_fijos")
+        .select("*")
+        .eq(
+          "user_id",
+          usuario.id
+        )
+        .order(
+          "created_at",
+          {
+            ascending: true
+          }
+        );
+
+
+    if (fijosError) {
+
+      console.error(
+        "Error cargando gastos fijos:",
+        fijosError
+      );
+
+    } else {
+
+      gastosFijos =
+        (
+          fijosData || []
+        ).map(
+          fijoDesdeSupabase
+        );
+    }
+
+
+    /*
+     * MOVIMIENTOS
+     */
+
+    const {
+      data:
+        movimientosData,
+      error:
+        movimientosError
+    } =
+      await supabaseClient
+        .from("movimientos")
+        .select("*")
+        .eq(
+          "user_id",
+          usuario.id
+        )
+        .order(
+          "fecha",
+          {
+            ascending: false
+          }
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false
+          }
+        );
+
+
+    if (movimientosError) {
+
+      console.error(
+        "Error cargando movimientos:",
+        movimientosError
+      );
+
+    } else {
+
+      movimientos =
+        (
+          movimientosData || []
+        ).map(
+          movimientoDesdeSupabase
+        );
+    }
+
+
+    /*
+     * Guardamos una copia local
+     * para respaldo.
+     */
+
+    guardarDatosLocal();
+
+
+  } catch (error) {
+
+    console.error(
+      "Error cargando datos desde Supabase:",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
+   CARGAR DATOS GENERAL
+   ========================================================= */
+
+async function cargarDatos() {
+
+  if (!usuario) return;
+
+
+  /*
+   * Primero cargamos una copia local
+   * para que la interfaz no quede vacía
+   * mientras consultamos Supabase.
+   */
 
   movimientos =
     leerLocal(
@@ -449,13 +1144,41 @@ function cargarDatos() {
 
 
   if (
-    !Array.isArray(distribucion)
+    !Array.isArray(
+      distribucion
+    )
   ) {
 
     distribucion =
       crearCategoriasDefault();
   }
 
+
+  /*
+   * Migramos datos locales solamente
+   * cuando existan.
+   */
+
+  await migrarDatosLocalesASupabase();
+
+
+  /*
+   * Después Supabase pasa a ser
+   * la fuente principal.
+   */
+
+  await cargarDatosSupabase();
+
+
+  construirCategorias();
+}
+
+
+/* =========================================================
+   CATEGORÍAS INTERNAS
+   ========================================================= */
+
+function construirCategorias() {
 
   categorias = {};
 
@@ -465,25 +1188,574 @@ function cargarDatos() {
       x =>
         x.activo !== false
     )
-    .forEach(x => {
+    .forEach(
+      x => {
 
-      categorias[x.id] = [
+        categorias[x.id] = [
 
-        x.icono ||
-        "📦",
+          x.icono ||
+          "📦",
 
-        x.nombre,
+          x.nombre,
 
-        Number(
-          x.limite
-        ) || 0
+          Number(
+            x.limite
+          ) || 0
 
-      ];
+        ];
 
-    });
+      }
+    );
+}
 
 
-  migrarEstructuras();
+/* =========================================================
+   GUARDAR MOVIMIENTO EN SUPABASE
+   ========================================================= */
+
+async function guardarMovimientoSupabase(m) {
+
+  if (!usuario) return false;
+
+
+  const fila =
+    movimientoASupabase(m);
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("movimientos")
+      .upsert(
+        fila,
+        {
+          onConflict:
+            "id"
+        }
+      )
+      .select()
+      .single();
+
+
+  if (error) {
+
+    console.error(
+      "Error guardando movimiento:",
+      error
+    );
+
+    alert(
+      "No se pudo guardar el movimiento en la nube. El dato queda en el respaldo local."
+    );
+
+    return false;
+  }
+
+
+  /*
+   * Guardamos el UUID real devuelto
+   * por Supabase.
+   */
+
+  const convertido =
+    movimientoDesdeSupabase(
+      data
+    );
+
+
+  const indice =
+    movimientos.findIndex(
+      x =>
+        x.id === m.id
+    );
+
+
+  if (
+    indice >= 0
+  ) {
+
+    movimientos[indice] =
+      convertido;
+  }
+
+
+  guardarMovimientosLocal();
+
+  return true;
+}
+
+
+/* =========================================================
+   ACTUALIZAR MOVIMIENTO EN SUPABASE
+   ========================================================= */
+
+async function actualizarMovimientoSupabase(m) {
+
+  if (!usuario) return false;
+
+
+  const fila =
+    movimientoASupabase(m);
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("movimientos")
+      .update(
+        fila
+      )
+      .eq(
+        "id",
+        m.id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      )
+      .select()
+      .single();
+
+
+  if (error) {
+
+    console.error(
+      "Error actualizando movimiento:",
+      error
+    );
+
+    alert(
+      "No se pudo actualizar el movimiento en Supabase."
+    );
+
+    return false;
+  }
+
+
+  const convertido =
+    movimientoDesdeSupabase(
+      data
+    );
+
+
+  const indice =
+    movimientos.findIndex(
+      x =>
+        x.id === m.id
+    );
+
+
+  if (
+    indice >= 0
+  ) {
+
+    movimientos[indice] =
+      convertido;
+  }
+
+
+  guardarMovimientosLocal();
+
+  return true;
+}
+
+
+/* =========================================================
+   ELIMINAR MOVIMIENTO SUPABASE
+   ========================================================= */
+
+async function eliminarMovimientoSupabase(id) {
+
+  if (!usuario) return false;
+
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("movimientos")
+      .delete()
+      .eq(
+        "id",
+        id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      );
+
+
+  if (error) {
+
+    console.error(
+      "Error eliminando movimiento:",
+      error
+    );
+
+    alert(
+      "No se pudo eliminar el movimiento de Supabase."
+    );
+
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/* =========================================================
+   GUARDAR GASTO FIJO SUPABASE
+   ========================================================= */
+
+async function guardarFijoSupabase(g) {
+
+  if (!usuario) return false;
+
+
+  const fila =
+    fijoASupabase(g);
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("gastos_fijos")
+      .upsert(
+        fila,
+        {
+          onConflict:
+            "id"
+        }
+      )
+      .select()
+      .single();
+
+
+  if (error) {
+
+    console.error(
+      "Error guardando gasto fijo:",
+      error
+    );
+
+    alert(
+      "No se pudo guardar el gasto fijo en Supabase."
+    );
+
+    return false;
+  }
+
+
+  const convertido =
+    fijoDesdeSupabase(
+      data
+    );
+
+
+  const indice =
+    gastosFijos.findIndex(
+      x =>
+        x.id === g.id
+    );
+
+
+  if (
+    indice >= 0
+  ) {
+
+    gastosFijos[indice] =
+      convertido;
+
+  } else {
+
+    gastosFijos.push(
+      convertido
+    );
+  }
+
+
+  guardarFijosLocal();
+
+  return true;
+}
+
+
+/* =========================================================
+   ACTUALIZAR GASTO FIJO SUPABASE
+   ========================================================= */
+
+async function actualizarFijoSupabase(g) {
+
+  if (!usuario) return false;
+
+
+  const fila =
+    fijoASupabase(g);
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("gastos_fijos")
+      .update(
+        fila
+      )
+      .eq(
+        "id",
+        g.id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      )
+      .select()
+      .single();
+
+
+  if (error) {
+
+    console.error(
+      "Error actualizando gasto fijo:",
+      error
+    );
+
+    alert(
+      "No se pudo actualizar el gasto fijo."
+    );
+
+    return false;
+  }
+
+
+  const convertido =
+    fijoDesdeSupabase(
+      data
+    );
+
+
+  const indice =
+    gastosFijos.findIndex(
+      x =>
+        x.id === g.id
+    );
+
+
+  if (
+    indice >= 0
+  ) {
+
+    gastosFijos[indice] =
+      convertido;
+  }
+
+
+  guardarFijosLocal();
+
+  return true;
+}
+
+
+/* =========================================================
+   ELIMINAR / DESACTIVAR GASTO FIJO
+   ========================================================= */
+
+async function desactivarFijoSupabase(id) {
+
+  if (!usuario) return false;
+
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("gastos_fijos")
+      .update({
+        activo: false
+      })
+      .eq(
+        "id",
+        id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      );
+
+
+  if (error) {
+
+    console.error(
+      "Error desactivando gasto fijo:",
+      error
+    );
+
+    alert(
+      "No se pudo desactivar el gasto fijo."
+    );
+
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/* =========================================================
+   GUARDAR CATEGORÍA SUPABASE
+   ========================================================= */
+
+async function guardarCategoriaSupabase(c) {
+
+  if (!usuario) return false;
+
+
+  const fila =
+    categoriaASupabase(c);
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("categorias")
+      .upsert(
+        fila,
+        {
+          onConflict:
+            "id"
+        }
+      )
+      .select()
+      .single();
+
+
+  if (error) {
+
+    console.error(
+      "Error guardando categoría:",
+      error
+    );
+
+    alert(
+      "No se pudo guardar el área en Supabase."
+    );
+
+    return false;
+  }
+
+
+  const convertido =
+    categoriaDesdeSupabase(
+      data
+    );
+
+
+  const indice =
+    distribucion.findIndex(
+      x =>
+        x.id === c.id
+    );
+
+
+  if (
+    indice >= 0
+  ) {
+
+    distribucion[indice] =
+      convertido;
+
+  } else {
+
+    distribucion.push(
+      convertido
+    );
+  }
+
+
+  construirCategorias();
+
+  guardarDistribucionLocal();
+
+  return true;
+}
+
+
+/* =========================================================
+   DESACTIVAR CATEGORÍA
+   ========================================================= */
+
+async function desactivarCategoriaSupabase(id) {
+
+  if (!usuario) return false;
+
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("categorias")
+      .update({
+        activo: false
+      })
+      .eq(
+        "id",
+        id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      );
+
+
+  if (error) {
+
+    console.error(
+      "Error eliminando categoría:",
+      error
+    );
+
+    alert(
+      "No se pudo eliminar el área."
+    );
+
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/* =========================================================
+   GUARDAR TODOS LOS DATOS
+   ========================================================= */
+
+async function guardarDatos() {
+
+  if (!usuario) return;
+
+
+  guardarDatosLocal();
+
+
+  /*
+   * No hacemos una sincronización masiva
+   * automáticamente en cada render.
+   *
+   * Los cambios individuales se envían
+   * a Supabase en sus respectivas funciones.
+   */
 }
 
 
@@ -586,13 +1858,12 @@ function mensaje(
    MOSTRAR APP
    ========================================================= */
 
-function mostrarApp() {
-
-  cargarDatos();
+async function mostrarApp() {
 
   $("pantallaAuth")
     .style.display =
     "none";
+
 
   if (
     $("formularioNuevaPassword")
@@ -602,6 +1873,7 @@ function mostrarApp() {
       .style.display =
       "none";
   }
+
 
   $("app")
     .style.display =
@@ -616,6 +1888,16 @@ function mostrarApp() {
   cerrarPaneles();
 
   establecerFechasHoy();
+
+  render();
+
+
+  /*
+   * Ahora cargamos desde Supabase.
+   */
+
+  await cargarDatos();
+
 
   render();
 }
@@ -909,7 +2191,7 @@ $("formRegistro")
     );
 
 
-    mostrarApp();
+    await mostrarApp();
   };
 
 
@@ -1022,7 +2304,7 @@ $("formLogin")
     );
 
 
-    mostrarApp();
+    await mostrarApp();
   };
 
 
@@ -1502,9 +2784,9 @@ function renderCategorias() {
             .filter(
               m =>
                 m.tipo ===
-                "gasto" &&
+                  "gasto" &&
                 m.categoria ===
-                c.id
+                  c.id
             )
             .reduce(
               (s, m) =>
@@ -1691,9 +2973,9 @@ function getFixedProgress(
       .filter(
         x =>
           x.tipo ===
-          "gasto" &&
+            "gasto" &&
           x.origenFijo ===
-          g.id
+            g.id
       )
       .filter(
         x => {
@@ -2763,6 +4045,8 @@ function renderMovimiento(
 
 function render() {
 
+  construirCategorias();
+
   actualizarSelects();
 
   renderResumen();
@@ -2994,7 +4278,7 @@ $("cerrarFormularioIngreso")
 
 $("formIngreso")
   .onsubmit =
-  e => {
+  async e => {
 
     e.preventDefault();
 
@@ -3028,10 +4312,10 @@ $("formIngreso")
     }
 
 
-    movimientos.push({
+    const movimiento = {
 
       id:
-        crypto.randomUUID(),
+        nuevoUUID(),
 
       tipo:
         "ingreso",
@@ -3048,10 +4332,36 @@ $("formIngreso")
 
       fecha
 
-    });
+    };
 
 
-    guardarMovimientos();
+    movimientos.push(
+      movimiento
+    );
+
+
+    guardarMovimientosLocal();
+
+
+    const ok =
+      await guardarMovimientoSupabase(
+        movimiento
+      );
+
+
+    if (!ok) {
+
+      movimientos =
+        movimientos.filter(
+          m =>
+            m.id !==
+            movimiento.id
+        );
+
+      guardarMovimientosLocal();
+
+      return;
+    }
 
 
     e.target.reset();
@@ -3163,7 +4473,7 @@ $("tipoSalida")
 
 $("formGasto")
   .onsubmit =
-  e => {
+  async e => {
 
     e.preventDefault();
 
@@ -3211,6 +4521,9 @@ $("formGasto")
     }
 
 
+    let movimiento;
+
+
     if (
       tipo ===
         "gasto" &&
@@ -3235,10 +4548,10 @@ $("formGasto")
         "Gasto fijo";
 
 
-      movimientos.push({
+      movimiento = {
 
         id:
-          crypto.randomUUID(),
+          nuevoUUID(),
 
         tipo:
           "gasto",
@@ -3258,19 +4571,20 @@ $("formGasto")
         fecha,
 
         origenFijo:
-          g?.id
+          g?.id ||
+          null
 
-      });
+      };
 
     } else if (
       tipo ===
       "gasto"
     ) {
 
-      movimientos.push({
+      movimiento = {
 
         id:
-          crypto.randomUUID(),
+          nuevoUUID(),
 
         tipo:
           "gasto",
@@ -3290,19 +4604,22 @@ $("formGasto")
           $("tipoGasto")
             .value,
 
-        fecha
+        fecha,
 
-      });
+        origenFijo:
+          null
+
+      };
 
     } else if (
       tipo ===
       "ahorro"
     ) {
 
-      movimientos.push({
+      movimiento = {
 
         id:
-          crypto.randomUUID(),
+          nuevoUUID(),
 
         tipo:
           "ahorro",
@@ -3317,9 +4634,12 @@ $("formGasto")
             .value
             .trim(),
 
-        fecha
+        fecha,
 
-      });
+        origenFijo:
+          null
+
+      };
 
     } else {
 
@@ -3343,10 +4663,10 @@ $("formGasto")
       }
 
 
-      movimientos.push({
+      movimiento = {
 
         id:
-          crypto.randomUUID(),
+          nuevoUUID(),
 
         tipo:
           "retiro_ahorro",
@@ -3361,13 +4681,42 @@ $("formGasto")
             .value
             .trim(),
 
-        fecha
+        fecha,
 
-      });
+        origenFijo:
+          null
+
+      };
     }
 
 
-    guardarMovimientos();
+    movimientos.push(
+      movimiento
+    );
+
+
+    guardarMovimientosLocal();
+
+
+    const ok =
+      await guardarMovimientoSupabase(
+        movimiento
+      );
+
+
+    if (!ok) {
+
+      movimientos =
+        movimientos.filter(
+          m =>
+            m.id !==
+            movimiento.id
+        );
+
+      guardarMovimientosLocal();
+
+      return;
+    }
 
 
     e.target.reset();
@@ -3388,13 +4737,21 @@ $("formGasto")
    ========================================================= */
 
 window.eliminarMovimiento =
-  id => {
+  async id => {
 
     if (
       !confirm(
         "¿Eliminar este movimiento?"
       )
     ) return;
+
+
+    const anterior =
+      movimientos.find(
+        m =>
+          m.id ===
+          id
+      );
 
 
     movimientos =
@@ -3405,7 +4762,30 @@ window.eliminarMovimiento =
       );
 
 
-    guardarMovimientos();
+    guardarMovimientosLocal();
+
+
+    const ok =
+      await eliminarMovimientoSupabase(
+        id
+      );
+
+
+    if (!ok) {
+
+      if (anterior) {
+
+        movimientos.push(
+          anterior
+        );
+      }
+
+      guardarMovimientosLocal();
+
+      render();
+
+      return;
+    }
 
 
     render();
@@ -3544,7 +4924,7 @@ $("cancelarEdicion")
 
 $("formEdicion")
   .onsubmit =
-  e => {
+  async e => {
 
     e.preventDefault();
 
@@ -3559,6 +4939,12 @@ $("formEdicion")
 
 
     if (!m) return;
+
+
+    const copia =
+      {
+        ...m
+      };
 
 
     const nuevoTipo =
@@ -3650,7 +5036,13 @@ $("formEdicion")
 
 
     m.categoria =
-      nuevaCategoria;
+      (
+        nuevoTipo === "gasto"
+          ? nuevaCategoria
+          : nuevoTipo === "ahorro"
+            ? "ahorro"
+            : "retiro_ahorro"
+      );
 
 
     if (
@@ -3658,12 +5050,51 @@ $("formEdicion")
       "gasto"
     ) {
 
-      delete m.origenFijo;
-      delete m.tipoGasto;
+      m.origenFijo =
+        null;
+
+      m.tipoGasto =
+        null;
+
+    } else {
+
+      /*
+       * Al editar conservamos el
+       * gasto fijo existente.
+       */
+      m.origenFijo =
+        copia.origenFijo ||
+        null;
+
+      m.tipoGasto =
+        copia.tipoGasto ||
+        "variable";
     }
 
 
-    guardarMovimientos();
+    guardarMovimientosLocal();
+
+
+    const ok =
+      await actualizarMovimientoSupabase(
+        m
+      );
+
+
+    if (!ok) {
+
+      Object.assign(
+        m,
+        copia
+      );
+
+      guardarMovimientosLocal();
+
+      render();
+
+      return;
+    }
+
 
     render();
 
@@ -3774,7 +5205,7 @@ window.editarFijo =
 
 $("formGastoFijo")
   .onsubmit =
-  e => {
+  async e => {
 
     e.preventDefault();
 
@@ -3817,9 +5248,12 @@ $("formGastoFijo")
     }
 
 
+    let gasto;
+
+
     if (id) {
 
-      const g =
+      const existente =
         gastosFijos.find(
           x =>
             x.id ===
@@ -3827,27 +5261,30 @@ $("formGastoFijo")
         );
 
 
-      if (g) {
+      if (!existente) return;
 
-        g.nombre =
-          nombre;
 
-        g.monto =
-          monto;
+      gasto = {
 
-        g.dia =
-          dia;
+        ...existente,
 
-        g.activo =
-          true;
-      }
+        nombre,
+
+        monto,
+
+        dia,
+
+        activo:
+          true
+
+      };
 
     } else {
 
-      gastosFijos.push({
+      gasto = {
 
         id:
-          crypto.randomUUID(),
+          nuevoUUID(),
 
         nombre,
 
@@ -3862,11 +5299,65 @@ $("formGastoFijo")
           new Date()
             .toISOString()
 
-      });
+      };
     }
 
 
-    guardarFijos();
+    const indice =
+      gastosFijos.findIndex(
+        x =>
+          x.id ===
+          gasto.id
+      );
+
+
+    if (
+      indice >= 0
+    ) {
+
+      gastosFijos[indice] =
+        gasto;
+
+    } else {
+
+      gastosFijos.push(
+        gasto
+      );
+    }
+
+
+    guardarFijosLocal();
+
+
+    const ok =
+      await guardarFijoSupabase(
+        gasto
+      );
+
+
+    if (!ok) {
+
+      if (
+        indice >= 0
+      ) {
+
+        gastosFijos[indice] =
+          gastosFijos[indice];
+
+      } else {
+
+        gastosFijos =
+          gastosFijos.filter(
+            x =>
+              x.id !==
+              gasto.id
+          );
+      }
+
+      guardarFijosLocal();
+
+      return;
+    }
 
 
     resetFijoForm();
@@ -3877,12 +5368,14 @@ $("formGastoFijo")
       "none";
 
 
+    actualizarSelects();
+
     render();
   };
 
 
 window.desactivarFijo =
-  id => {
+  async id => {
 
     const g =
       gastosFijos.find(
@@ -3893,21 +5386,44 @@ window.desactivarFijo =
 
 
     if (
-      g &&
-      confirm(
+      !g ||
+      !confirm(
         `¿Dejar de usar ${g.nombre} como gasto fijo? Sus pagos históricos se conservarán.`
       )
-    ) {
+    ) return;
+
+
+    const anterior =
+      g.activo;
+
+
+    g.activo =
+      false;
+
+
+    guardarFijosLocal();
+
+
+    const ok =
+      await desactivarFijoSupabase(
+        id
+      );
+
+
+    if (!ok) {
 
       g.activo =
-        false;
+        anterior;
 
-
-      guardarFijos();
-
+      guardarFijosLocal();
 
       render();
+
+      return;
     }
+
+
+    render();
   };
 
 
@@ -3960,7 +5476,7 @@ window.abrirPagoFijo =
         .value =
         vivienda?.id ||
         distribucion[0]?.id ||
-        "otros";
+        "";
 
 
       $("descripcion")
@@ -4016,6 +5532,7 @@ $("modalDistribucion")
           .style.display =
           "none";
       }
+
     }
   );
 
@@ -4098,7 +5615,7 @@ function renderEditorDistribucion() {
 
 
 window.editarArea =
-  id => {
+  async id => {
 
     const c =
       distribucion.find(
@@ -4149,6 +5666,12 @@ window.editarArea =
     ) return;
 
 
+    const anterior =
+      {
+        ...c
+      };
+
+
     c.nombre =
       nombre;
 
@@ -4159,18 +5682,40 @@ window.editarArea =
       "📦";
 
 
-    guardarDistribucion();
+    guardarDistribucionLocal();
 
+
+    const ok =
+      await guardarCategoriaSupabase(
+        c
+      );
+
+
+    if (!ok) {
+
+      Object.assign(
+        c,
+        anterior
+      );
+
+      guardarDistribucionLocal();
+
+      renderEditorDistribucion();
+
+      return;
+    }
+
+
+    construirCategorias();
 
     renderEditorDistribucion();
-
 
     render();
   };
 
 
 window.eliminarArea =
-  id => {
+  async id => {
 
     if (
       distribucion
@@ -4198,30 +5743,54 @@ window.eliminarArea =
 
 
     if (
-      c &&
-      confirm(
+      !c ||
+      !confirm(
         `¿Eliminar ${c.nombre} de la distribución? Sus movimientos históricos se conservarán.`
       )
-    ) {
+    ) return;
+
+
+    const anterior =
+      c.activo;
+
+
+    c.activo =
+      false;
+
+
+    guardarDistribucionLocal();
+
+
+    const ok =
+      await desactivarCategoriaSupabase(
+        id
+      );
+
+
+    if (!ok) {
 
       c.activo =
-        false;
+        anterior;
 
-
-      guardarDistribucion();
-
+      guardarDistribucionLocal();
 
       renderEditorDistribucion();
 
-
-      render();
+      return;
     }
+
+
+    construirCategorias();
+
+    renderEditorDistribucion();
+
+    render();
   };
 
 
 $("formNuevaArea")
   .onsubmit =
-  e => {
+  async e => {
 
     e.preventDefault();
 
@@ -4273,10 +5842,10 @@ $("formNuevaArea")
     }
 
 
-    distribucion.push({
+    const nueva = {
 
       id:
-        crypto.randomUUID(),
+        nuevoUUID(),
 
       nombre,
 
@@ -4287,17 +5856,44 @@ $("formNuevaArea")
       activo:
         true
 
-    });
+    };
 
 
-    guardarDistribucion();
+    distribucion.push(
+      nueva
+    );
+
+
+    guardarDistribucionLocal();
+
+
+    const ok =
+      await guardarCategoriaSupabase(
+        nueva
+      );
+
+
+    if (!ok) {
+
+      distribucion =
+        distribucion.filter(
+          x =>
+            x.id !==
+            nueva.id
+        );
+
+      guardarDistribucionLocal();
+
+      return;
+    }
 
 
     e.target.reset();
 
 
-    renderEditorDistribucion();
+    construirCategorias();
 
+    renderEditorDistribucion();
 
     render();
   };
@@ -4305,7 +5901,10 @@ $("formNuevaArea")
 
 $("guardarLimitesDistribucion")
   .onclick =
-  () => {
+  async () => {
+
+    const cambios = [];
+
 
     document
       .querySelectorAll(
@@ -4331,12 +5930,28 @@ $("guardarLimitesDistribucion")
                 ) || 0,
                 0
               );
+
+            cambios.push(
+              c
+            );
           }
+
         }
       );
 
 
-    guardarDistribucion();
+    guardarDistribucionLocal();
+
+
+    for (
+      const c
+      of cambios
+    ) {
+
+      await guardarCategoriaSupabase(
+        c
+      );
+    }
 
 
     $("modalDistribucion")
@@ -4672,7 +6287,7 @@ $("botonConfiguracion")
   .onclick =
   () =>
     alert(
-      "La configuración de cuenta y datos se mantiene local en este dispositivo. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos."
+      "Tu cuenta y tus datos financieros están protegidos por Supabase. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos."
     );
 
 
@@ -4739,7 +6354,7 @@ async function iniciarAplicacion() {
       );
 
 
-      mostrarApp();
+      await mostrarApp();
 
 
       return;
@@ -4772,7 +6387,7 @@ async function iniciarAplicacion() {
 supabaseClient
   .auth
   .onAuthStateChange(
-    (
+    async (
       event,
       session
     ) => {
@@ -4831,7 +6446,7 @@ supabaseClient
         );
 
 
-        mostrarApp();
+        await mostrarApp();
       }
 
     }
@@ -4922,3 +6537,4 @@ if (
     }
   );
 }
+```
