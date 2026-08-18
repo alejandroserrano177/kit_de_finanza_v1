@@ -653,15 +653,15 @@ async function migrarDatosLocalesASupabase() {
       const {
         error
       } =
-        await supabaseClient
-          .from("categorias")
-          .upsert(
-            categoriasParaSubir,
-            {
-              onConflict:
-                "id"
-            }
-          );
+      await supabaseClient
+        .from("categorias")
+        .upsert(
+          categoriasParaSubir,
+          {
+            onConflict:
+              "id"
+          }
+        );
 
 
       if (error) {
@@ -672,11 +672,6 @@ async function migrarDatosLocalesASupabase() {
         );
 
       } else {
-
-        /*
-         * Actualizamos los IDs locales
-         * de las categorías.
-         */
 
         distribucion =
           categoriasLocales.map(
@@ -693,11 +688,6 @@ async function migrarDatosLocalesASupabase() {
             })
           );
 
-
-        /*
-         * Actualizamos las categorías
-         * de los movimientos.
-         */
 
         movimientos =
           Array.isArray(
@@ -733,12 +723,6 @@ async function migrarDatosLocalesASupabase() {
     }
 
 
-    /*
-     * Si no había categorías locales,
-     * utilizamos las categorías que
-     * ya estén en Supabase.
-     */
-
     if (
       !distribucion.length
     ) {
@@ -746,13 +730,13 @@ async function migrarDatosLocalesASupabase() {
       const {
         data
       } =
-        await supabaseClient
-          .from("categorias")
-          .select("*")
-          .eq(
-            "user_id",
-            usuario.id
-          );
+      await supabaseClient
+        .from("categorias")
+        .select("*")
+        .eq(
+          "user_id",
+          usuario.id
+        );
 
       if (
         Array.isArray(data) &&
@@ -766,10 +750,6 @@ async function migrarDatosLocalesASupabase() {
       }
     }
 
-
-    /*
-     * Migración de gastos fijos.
-     */
 
     if (
       Array.isArray(
@@ -802,15 +782,15 @@ async function migrarDatosLocalesASupabase() {
       const {
         error
       } =
-        await supabaseClient
-          .from("gastos_fijos")
-          .upsert(
-            filas,
-            {
-              onConflict:
-                "id"
-            }
-          );
+      await supabaseClient
+        .from("gastos_fijos")
+        .upsert(
+          filas,
+          {
+            onConflict:
+              "id"
+          }
+        );
 
 
       if (error) {
@@ -822,10 +802,6 @@ async function migrarDatosLocalesASupabase() {
       }
     }
 
-
-    /*
-     * Migración de movimientos.
-     */
 
     if (
       Array.isArray(
@@ -843,15 +819,15 @@ async function migrarDatosLocalesASupabase() {
       const {
         error
       } =
-        await supabaseClient
-          .from("movimientos")
-          .upsert(
-            filas,
-            {
-              onConflict:
-                "id"
-            }
-          );
+      await supabaseClient
+        .from("movimientos")
+        .upsert(
+          filas,
+          {
+            onConflict:
+              "id"
+          }
+        );
 
 
       if (error) {
@@ -893,29 +869,25 @@ async function cargarDatosSupabase() {
 
   try {
 
-    /*
-     * CATEGORÍAS
-     */
-
     const {
       data:
         categoriasData,
       error:
         categoriasError
     } =
-      await supabaseClient
-        .from("categorias")
-        .select("*")
-        .eq(
-          "user_id",
-          usuario.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: true
-          }
-        );
+    await supabaseClient
+      .from("categorias")
+      .select("*")
+      .eq(
+        "user_id",
+        usuario.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending: true
+        }
+      );
 
 
     if (categoriasError) {
@@ -935,11 +907,6 @@ async function cargarDatosSupabase() {
         );
     }
 
-
-    /*
-     * Si el usuario todavía no tiene
-     * categorías, creamos las predeterminadas.
-     */
 
     if (
       !distribucion.length
@@ -966,12 +933,12 @@ async function cargarDatosSupabase() {
         data,
         error
       } =
-        await supabaseClient
-          .from("categorias")
-          .insert(
-            filas
-          )
-          .select();
+      await supabaseClient
+        .from("categorias")
+        .insert(
+          filas
+        )
+        .select();
 
 
       if (error) {
@@ -996,29 +963,25 @@ async function cargarDatosSupabase() {
     }
 
 
-    /*
-     * GASTOS FIJOS
-     */
-
     const {
       data:
         fijosData,
       error:
         fijosError
     } =
-      await supabaseClient
-        .from("gastos_fijos")
-        .select("*")
-        .eq(
-          "user_id",
-          usuario.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: true
-          }
-        );
+    await supabaseClient
+      .from("gastos_fijos")
+      .select("*")
+      .eq(
+        "user_id",
+        usuario.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending: true
+        }
+      );
 
 
     if (fijosError) {
@@ -1039,35 +1002,31 @@ async function cargarDatosSupabase() {
     }
 
 
-    /*
-     * MOVIMIENTOS
-     */
-
     const {
       data:
         movimientosData,
       error:
         movimientosError
     } =
-      await supabaseClient
-        .from("movimientos")
-        .select("*")
-        .eq(
-          "user_id",
-          usuario.id
-        )
-        .order(
-          "fecha",
-          {
-            ascending: false
-          }
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false
-          }
-        );
+    await supabaseClient
+      .from("movimientos")
+      .select("*")
+      .eq(
+        "user_id",
+        usuario.id
+      )
+      .order(
+        "fecha",
+        {
+          ascending: false
+        }
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
 
 
     if (movimientosError) {
@@ -1088,13 +1047,7 @@ async function cargarDatosSupabase() {
     }
 
 
-    /*
-     * Guardamos una copia local
-     * para respaldo.
-     */
-
     guardarDatosLocal();
-
 
   } catch (error) {
 
@@ -1114,12 +1067,6 @@ async function cargarDatos() {
 
   if (!usuario) return;
 
-
-  /*
-   * Primero cargamos una copia local
-   * para que la interfaz no quede vacía
-   * mientras consultamos Supabase.
-   */
 
   movimientos =
     leerLocal(
@@ -1153,21 +1100,9 @@ async function cargarDatos() {
   }
 
 
-  /*
-   * Migramos datos locales solamente
-   * cuando existan.
-   */
-
   await migrarDatosLocalesASupabase();
 
-
-  /*
-   * Después Supabase pasa a ser
-   * la fuente principal.
-   */
-
   await cargarDatosSupabase();
-
 
   construirCategorias();
 }
@@ -1225,17 +1160,17 @@ async function guardarMovimientoSupabase(m) {
     data,
     error
   } =
-    await supabaseClient
-      .from("movimientos")
-      .upsert(
-        fila,
-        {
-          onConflict:
-            "id"
-        }
-      )
-      .select()
-      .single();
+  await supabaseClient
+    .from("movimientos")
+    .upsert(
+      fila,
+      {
+        onConflict:
+          "id"
+      }
+    )
+    .select()
+    .single();
 
 
   if (error) {
@@ -1252,11 +1187,6 @@ async function guardarMovimientoSupabase(m) {
     return false;
   }
 
-
-  /*
-   * Guardamos el UUID real devuelto
-   * por Supabase.
-   */
 
   const convertido =
     movimientoDesdeSupabase(
@@ -1303,21 +1233,21 @@ async function actualizarMovimientoSupabase(m) {
     data,
     error
   } =
-    await supabaseClient
-      .from("movimientos")
-      .update(
-        fila
-      )
-      .eq(
-        "id",
-        m.id
-      )
-      .eq(
-        "user_id",
-        usuario.id
-      )
-      .select()
-      .single();
+  await supabaseClient
+    .from("movimientos")
+    .update(
+      fila
+    )
+    .eq(
+      "id",
+      m.id
+    )
+    .eq(
+      "user_id",
+      usuario.id
+    )
+    .select()
+    .single();
 
 
   if (error) {
@@ -1375,17 +1305,17 @@ async function eliminarMovimientoSupabase(id) {
   const {
     error
   } =
-    await supabaseClient
-      .from("movimientos")
-      .delete()
-      .eq(
-        "id",
-        id
-      )
-      .eq(
-        "user_id",
-        usuario.id
-      );
+  await supabaseClient
+    .from("movimientos")
+    .delete()
+    .eq(
+      "id",
+      id
+    )
+    .eq(
+      "user_id",
+      usuario.id
+    );
 
 
   if (error) {
@@ -1424,17 +1354,17 @@ async function guardarFijoSupabase(g) {
     data,
     error
   } =
-    await supabaseClient
-      .from("gastos_fijos")
-      .upsert(
-        fila,
-        {
-          onConflict:
-            "id"
-        }
-      )
-      .select()
-      .single();
+  await supabaseClient
+    .from("gastos_fijos")
+    .upsert(
+      fila,
+      {
+        onConflict:
+          "id"
+      }
+    )
+    .select()
+    .single();
 
 
   if (error) {
@@ -1503,21 +1433,21 @@ async function actualizarFijoSupabase(g) {
     data,
     error
   } =
-    await supabaseClient
-      .from("gastos_fijos")
-      .update(
-        fila
-      )
-      .eq(
-        "id",
-        g.id
-      )
-      .eq(
-        "user_id",
-        usuario.id
-      )
-      .select()
-      .single();
+  await supabaseClient
+    .from("gastos_fijos")
+    .update(
+      fila
+    )
+    .eq(
+      "id",
+      g.id
+    )
+    .eq(
+      "user_id",
+      usuario.id
+    )
+    .select()
+    .single();
 
 
   if (error) {
@@ -1575,19 +1505,19 @@ async function desactivarFijoSupabase(id) {
   const {
     error
   } =
-    await supabaseClient
-      .from("gastos_fijos")
-      .update({
-        activo: false
-      })
-      .eq(
-        "id",
-        id
-      )
-      .eq(
-        "user_id",
-        usuario.id
-      );
+  await supabaseClient
+    .from("gastos_fijos")
+    .update({
+      activo: false
+    })
+    .eq(
+      "id",
+      id
+    )
+    .eq(
+      "user_id",
+      usuario.id
+    );
 
 
   if (error) {
@@ -1626,17 +1556,17 @@ async function guardarCategoriaSupabase(c) {
     data,
     error
   } =
-    await supabaseClient
-      .from("categorias")
-      .upsert(
-        fila,
-        {
-          onConflict:
-            "id"
-        }
-      )
-      .select()
-      .single();
+  await supabaseClient
+    .from("categorias")
+    .upsert(
+      fila,
+      {
+        onConflict:
+          "id"
+      }
+    )
+    .select()
+    .single();
 
 
   if (error) {
@@ -1702,19 +1632,19 @@ async function desactivarCategoriaSupabase(id) {
   const {
     error
   } =
-    await supabaseClient
-      .from("categorias")
-      .update({
-        activo: false
-      })
-      .eq(
-        "id",
-        id
-      )
-      .eq(
-        "user_id",
-        usuario.id
-      );
+  await supabaseClient
+    .from("categorias")
+    .update({
+      activo: false
+    })
+    .eq(
+      "id",
+      id
+    )
+    .eq(
+      "user_id",
+      usuario.id
+    );
 
 
   if (error) {
@@ -1744,17 +1674,7 @@ async function guardarDatos() {
 
   if (!usuario) return;
 
-
   guardarDatosLocal();
-
-
-  /*
-   * No hacemos una sincronización masiva
-   * automáticamente en cada render.
-   *
-   * Los cambios individuales se envían
-   * a Supabase en sus respectivas funciones.
-   */
 }
 
 
@@ -1890,13 +1810,7 @@ async function mostrarApp() {
 
   render();
 
-
-  /*
-   * Ahora cargamos desde Supabase.
-   */
-
   await cargarDatos();
-
 
   render();
 }
@@ -2110,25 +2024,25 @@ $("formRegistro")
       data,
       error
     } =
-      await supabaseClient
-        .auth
-        .signUp({
+    await supabaseClient
+      .auth
+      .signUp({
 
-          email:
-            correo,
+        email:
+          correo,
 
-          password:
-            p1,
+        password:
+          p1,
 
-          options: {
+        options: {
 
-            data: {
-              nombre
-            }
-
+          data: {
+            nombre
           }
 
-        });
+        }
+
+      });
 
 
     if (error) {
@@ -2226,16 +2140,16 @@ $("formLogin")
       data,
       error
     } =
-      await supabaseClient
-        .auth
-        .signInWithPassword({
+    await supabaseClient
+      .auth
+      .signInWithPassword({
 
-          email:
-            correo,
+        email:
+          correo,
 
-          password
+        password
 
-        });
+      });
 
 
     if (error) {
@@ -2418,14 +2332,14 @@ $("formRecuperarPassword")
     const {
       error
     } =
-      await supabaseClient
-        .auth
-        .resetPasswordForEmail(
-          correo,
-          {
-            redirectTo
-          }
-        );
+    await supabaseClient
+      .auth
+      .resetPasswordForEmail(
+        correo,
+        {
+          redirectTo
+        }
+      );
 
 
     if (error) {
@@ -2541,14 +2455,14 @@ $("formNuevaPassword")
     const {
       error
     } =
-      await supabaseClient
-        .auth
-        .updateUser({
+    await supabaseClient
+      .auth
+      .updateUser({
 
-          password:
-            p1
+        password:
+          p1
 
-        });
+      });
 
 
     if (error) {
@@ -2627,7 +2541,7 @@ function obtenerTotales() {
       );
 
 
-  const gas =
+  const gastosNormales =
     movimientos
       .filter(
         m =>
@@ -2678,22 +2592,50 @@ function obtenerTotales() {
       );
 
 
+  /*
+   * Los aportes a ahorro cuentan como
+   * salida de dinero dentro del total
+   * de gastos, aunque se mantienen
+   * identificados por separado como ahorro.
+   */
+
+  const gas =
+    gastosNormales +
+    aportes;
+
+
+  const ahorro =
+    Math.max(
+      aportes -
+      retiros,
+      0
+    );
+
+
+  const balance =
+    ing -
+    gas +
+    retiros;
+
+
   return {
 
     ing,
 
     gas,
 
-    ahorro:
-      Math.max(
-        aportes -
-        retiros,
-        0
-      ),
+    gastosNormales,
+
+    aportes,
+
+    retiros,
+
+    ahorro,
+
+    balance,
 
     disponible:
-      ing -
-      gas
+      balance
 
   };
 }
@@ -2709,9 +2651,10 @@ function renderResumen() {
     ing,
     gas,
     ahorro,
-    disponible
+    disponible,
+    balance
   } =
-    obtenerTotales();
+  obtenerTotales();
 
 
   $("totalIngresos")
@@ -2726,7 +2669,7 @@ function renderResumen() {
 
   $("totalBalance")
     .textContent =
-    money(disponible);
+    money(balance);
 
 
   $("totalAhorro")
@@ -2748,7 +2691,7 @@ function renderResumen() {
 
   $("totalBalance")
     .style.color =
-    disponible < 0
+    balance < 0
       ? "var(--rojo-alerta)"
       : "var(--texto-principal)";
 }
@@ -4365,12 +4308,9 @@ $("formIngreso")
 
     e.target.reset();
 
-
     render();
 
-
     establecerFechasHoy();
-
 
     $("formularioIngreso")
       .style.display =
@@ -4720,12 +4660,9 @@ $("formGasto")
 
     e.target.reset();
 
-
     cerrarFormGasto();
 
-
     render();
-
 
     establecerFechasHoy();
   };
@@ -5057,10 +4994,6 @@ $("formEdicion")
 
     } else {
 
-      /*
-       * Al editar conservamos el
-       * gasto fijo existente.
-       */
       m.origenFijo =
         copia.origenFijo ||
         null;
@@ -5310,6 +5243,14 @@ $("formGastoFijo")
       );
 
 
+    const copiaAnterior =
+      indice >= 0
+        ? {
+            ...gastosFijos[indice]
+          }
+        : null;
+
+
     if (
       indice >= 0
     ) {
@@ -5337,11 +5278,12 @@ $("formGastoFijo")
     if (!ok) {
 
       if (
-        indice >= 0
+        indice >= 0 &&
+        copiaAnterior
       ) {
 
         gastosFijos[indice] =
-          gastosFijos[indice];
+          copiaAnterior;
 
       } else {
 
@@ -5352,6 +5294,7 @@ $("formGastoFijo")
               gasto.id
           );
       }
+
 
       guardarFijosLocal();
 
@@ -5889,7 +5832,6 @@ $("formNuevaArea")
 
     e.target.reset();
 
-
     construirCategorias();
 
     renderEditorDistribucion();
@@ -6302,9 +6244,9 @@ async function iniciarAplicacion() {
       data,
       error
     } =
-      await supabaseClient
-        .auth
-        .getSession();
+    await supabaseClient
+      .auth
+      .getSession();
 
 
     if (error) {
@@ -6354,7 +6296,6 @@ async function iniciarAplicacion() {
 
 
       await mostrarApp();
-
 
       return;
     }
