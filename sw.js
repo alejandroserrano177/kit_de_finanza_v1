@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v23";
+const CACHE_NAME = "kit-finanzas-v24";
 
 const APP_ASSETS = [
   "./",
@@ -72,6 +72,32 @@ async function cacheRespuesta(request, response) {
   return response;
 }
 
+async function obtenerAppOffline() {
+  const cache = await caches.open(CACHE_NAME);
+
+  const appResponse = await cache.match("./app.js");
+  const bootResponse = await cache.match("./offline-boot.js");
+
+  if (!appResponse || !bootResponse) {
+    return appResponse || null;
+  }
+
+  const [boot, app] = await Promise.all([
+    bootResponse.text(),
+    appResponse.text()
+  ]);
+
+  return new Response(
+    `${boot}\n\n/* OFFLINE APP BOOT */\n${app}`,
+    {
+      headers: {
+        "Content-Type": "application/javascript; charset=UTF-8",
+        "Cache-Control": "no-store"
+      }
+    }
+  );
+}
+
 self.addEventListener("install", event => {
   event.waitUntil(
     (async () => {
@@ -138,6 +164,16 @@ self.addEventListener("fetch", event => {
 
   event.respondWith(
     (async () => {
+      const url = new URL(event.request.url);
+
+      if (
+        !navigator.onLine &&
+        url.pathname.endsWith("/app.js")
+      ) {
+        const offlineApp = await obtenerAppOffline();
+        if (offlineApp) return offlineApp;
+      }
+
       try {
         const response = await fetch(event.request, {
           cache: "no-store"
