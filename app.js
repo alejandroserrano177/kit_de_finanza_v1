@@ -1064,6 +1064,12 @@ async function cargarDatos() {
   if (!usuario) return;
 
 
+  /*
+   * =======================================================
+   * 1. CARGAR PRIMERO LOS DATOS LOCALES
+   * =======================================================
+   */
+
   movimientos =
     leerLocal(
       userKey("movimientos"),
@@ -1096,48 +1102,36 @@ async function cargarDatos() {
   }
 
 
+  /*
+   * =======================================================
+   * 2. SIN INTERNET
+   * =======================================================
+   */
+
+  if (
+    !navigator.onLine
+  ) {
+
+    construirCategorias();
+
+    actualizarSelects();
+
+    return;
+  }
+
+
+  /*
+   * =======================================================
+   * 3. CON INTERNET
+   * =======================================================
+   */
+
   await migrarDatosLocalesASupabase();
 
   await cargarDatosSupabase();
 
   construirCategorias();
 }
-
-
-/* =========================================================
-   CATEGORÍAS INTERNAS
-   ========================================================= */
-
-function construirCategorias() {
-
-  categorias = {};
-
-
-  distribucion
-    .filter(
-      x =>
-        x.activo !== false
-    )
-    .forEach(
-      x => {
-
-        categorias[x.id] = [
-
-          x.icono ||
-          "📦",
-
-          x.nombre,
-
-          Number(
-            x.limite
-          ) || 0
-
-        ];
-
-      }
-    );
-}
-
 
 /* =========================================================
    GUARDAR MOVIMIENTO EN SUPABASE
