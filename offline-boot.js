@@ -32,6 +32,31 @@
     };
   }
 
+  function tieneDatosLocales(userId) {
+    if (!userId) return false;
+
+    const sufijos = [
+      "movimientos",
+      "distribucion",
+      "fijos"
+    ];
+
+    return sufijos.some(sufijo => {
+      try {
+        const raw = localStorage.getItem(
+          `kf_${userId}_${sufijo}`
+        );
+
+        if (!raw) return false;
+
+        const valor = JSON.parse(raw);
+        return Array.isArray(valor) && valor.length > 0;
+      } catch {
+        return false;
+      }
+    });
+  }
+
   function detectarUsuarioDesdeDatosLocales() {
     try {
       const candidatos = new Map();
@@ -40,7 +65,10 @@
         const key = localStorage.key(i);
         if (!key) continue;
 
-        const match = key.match(/^kf_(.+)_(movimientos|distribucion|fijos)$/);
+        const match = key.match(
+          /^kf_(.+)_(movimientos|distribucion|fijos)$/
+        );
+
         if (!match) continue;
 
         const userId = match[1];
@@ -99,7 +127,13 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         const usuario = normalizarUsuario(parsed);
-        if (usuario) return usuario;
+
+        if (
+          usuario &&
+          tieneDatosLocales(usuario.id)
+        ) {
+          return usuario;
+        }
       }
     } catch {}
 
