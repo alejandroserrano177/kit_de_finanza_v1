@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 
-const money = n => "$" + Number(n || 0).toFixed(2);
+const money = n =>
+  "$" + Number(n || 0).toFixed(2);
 
 
 /* =========================================================
@@ -16,7 +17,15 @@ const SUPABASE_PUBLISHABLE_KEY =
 const supabaseClient =
   window.supabase.createClient(
     SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
+    SUPABASE_PUBLISHABLE_KEY,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage
+      }
+    }
   );
 
 
@@ -24,63 +33,130 @@ const supabaseClient =
    CONFIGURACIÓN LOCAL
    ========================================================= */
 
-const USERS_KEY = "kf_usuarios_v2";
-const SESSION_KEY = "kf_sesion_v2";
+const USERS_KEY =
+  "kf_usuarios_v2";
+
+const SESSION_KEY =
+  "kf_sesion_v2";
 
 const DEFAULT_CATEGORIAS = {
-  alimentacion: ["🍽️", "Alimentación", 150],
-  vivienda: ["🏠", "Vivienda", 150],
-  transporte: ["🚌", "Transporte", 100],
-  comunicaciones: ["📱", "Comunicaciones", 50],
-  familia: ["❤️", "Familia", 100],
-  educacion: ["🎓", "Educación", 75],
-  inversion: ["📈", "Inversión", 100],
-  otros: ["📦", "Otros", 75]
+
+  alimentacion:
+    ["🍽️", "Alimentación", 150],
+
+  vivienda:
+    ["🏠", "Vivienda", 150],
+
+  transporte:
+    ["🚌", "Transporte", 100],
+
+  comunicaciones:
+    ["📱", "Comunicaciones", 50],
+
+  familia:
+    ["❤️", "Familia", 100],
+
+  educacion:
+    ["🎓", "Educación", 75],
+
+  inversion:
+    ["📈", "Inversión", 100],
+
+  otros:
+    ["📦", "Otros", 75]
+
 };
 
+
 const DEFAULT_GASTOS_FIJOS = [
+
   {
-    id: "fijo_alquiler",
-    nombre: "Alquiler",
-    monto: 120,
-    dia: 1,
-    activo: true
+    id:
+      "fijo_alquiler",
+
+    nombre:
+      "Alquiler",
+
+    monto:
+      120,
+
+    dia:
+      1,
+
+    activo:
+      true
   },
+
   {
-    id: "fijo_internet",
-    nombre: "Internet",
-    monto: 30,
-    dia: 5,
-    activo: true
+    id:
+      "fijo_internet",
+
+    nombre:
+      "Internet",
+
+    monto:
+      30,
+
+    dia:
+      5,
+
+    activo:
+      true
   },
+
   {
-    id: "fijo_telefono",
-    nombre: "Teléfono",
-    monto: 23,
-    dia: 10,
-    activo: true
+    id:
+      "fijo_telefono",
+
+    nombre:
+      "Teléfono",
+
+    monto:
+      23,
+
+    dia:
+      10,
+
+    activo:
+      true
   }
+
 ];
 
+
 let usuario = null;
+
 let movimientos = [];
+
 let gastosFijos = [];
+
 let categorias = {};
+
 let distribucion = [];
 
-let sincronizando = false;
+
+let sincronizando =
+  false;
+
+let sincronizacionEnCurso =
+  false;
 
 
 /* =========================================================
    LOCALSTORAGE
    ========================================================= */
 
-function leerLocal(key, fallback = null) {
+function leerLocal(
+  key,
+  fallback = null
+) {
 
   try {
 
     const v =
-      localStorage.getItem(key);
+      localStorage.getItem(
+        key
+      );
 
     return v === null
       ? fallback
@@ -93,7 +169,10 @@ function leerLocal(key, fallback = null) {
 }
 
 
-function escribirLocal(key, value) {
+function escribirLocal(
+  key,
+  value
+) {
 
   try {
 
@@ -104,7 +183,9 @@ function escribirLocal(key, value) {
 
     return true;
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       "No se pudo guardar:",
@@ -126,7 +207,9 @@ function usuarios() {
 }
 
 
-function guardarUsuarios(lista) {
+function guardarUsuarios(
+  lista
+) {
 
   return escribirLocal(
     USERS_KEY,
@@ -135,9 +218,300 @@ function guardarUsuarios(lista) {
 }
 
 
-function userKey(nombre) {
+function userKey(
+  nombre
+) {
 
   return `kf_${usuario.id}_${nombre}`;
+}
+
+
+/* =========================================================
+   COLAS OFFLINE
+   ========================================================= */
+
+function pendientesMovimientosKey() {
+
+  return userKey(
+    "pendientes_movimientos"
+  );
+}
+
+
+function pendientesEliminadosKey() {
+
+  return userKey(
+    "pendientes_eliminados"
+  );
+}
+
+
+function leerPendientesMovimientos() {
+
+  return leerLocal(
+    pendientesMovimientosKey(),
+    []
+  ) || [];
+}
+
+
+function guardarPendientesMovimientos(
+  lista
+) {
+
+  return escribirLocal(
+    pendientesMovimientosKey(),
+    lista
+  );
+}
+
+
+function leerPendientesEliminados() {
+
+  return leerLocal(
+    pendientesEliminadosKey(),
+    []
+  ) || [];
+}
+
+
+function guardarPendientesEliminados(
+  lista
+) {
+
+  return escribirLocal(
+    pendientesEliminadosKey(),
+    lista
+  );
+}
+
+
+function agregarMovimientoPendiente(
+  movimiento
+) {
+
+  if (!usuario) return;
+
+
+  const lista =
+    leerPendientesMovimientos();
+
+
+  const indice =
+    lista.findIndex(
+      x =>
+        x.id ===
+        movimiento.id
+    );
+
+
+  if (
+    indice >= 0
+  ) {
+
+    lista[indice] =
+      {
+        ...movimiento
+      };
+
+  } else {
+
+    lista.push(
+      {
+        ...movimiento
+      }
+    );
+  }
+
+
+  guardarPendientesMovimientos(
+    lista
+  );
+}
+
+
+function quitarMovimientoPendiente(
+  id
+) {
+
+  if (!usuario) return;
+
+
+  const lista =
+    leerPendientesMovimientos()
+      .filter(
+        x =>
+          x.id !==
+          id
+      );
+
+
+  guardarPendientesMovimientos(
+    lista
+  );
+}
+
+
+function agregarEliminadoPendiente(
+  id
+) {
+
+  if (!usuario) return;
+
+
+  const lista =
+    leerPendientesEliminados();
+
+
+  if (
+    !lista.includes(id)
+  ) {
+
+    lista.push(id);
+  }
+
+
+  guardarPendientesEliminados(
+    lista
+  );
+
+
+  /*
+   * Si se elimina algo que estaba
+   * pendiente de creación/actualización,
+   * la eliminación tiene prioridad.
+   */
+
+  const movimientosPendientes =
+    leerPendientesMovimientos()
+      .filter(
+        x =>
+          x.id !==
+          id
+      );
+
+
+  guardarPendientesMovimientos(
+    movimientosPendientes
+  );
+}
+
+
+function quitarEliminadoPendiente(
+  id
+) {
+
+  if (!usuario) return;
+
+
+  const lista =
+    leerPendientesEliminados()
+      .filter(
+        x =>
+          x !==
+          id
+      );
+
+
+  guardarPendientesEliminados(
+    lista
+  );
+}
+
+
+/* =========================================================
+   ESTADO DE CONEXIÓN
+   ========================================================= */
+
+function estaOnline() {
+
+  return (
+    navigator.onLine === true
+  );
+}
+
+
+function mostrarAvisoOffline(
+  texto
+) {
+
+  document
+    .querySelectorAll(
+      ".mensaje-offline"
+    )
+    .forEach(
+      el =>
+        el.remove()
+    );
+
+
+  const aviso =
+    document.createElement(
+      "div"
+    );
+
+
+  aviso.className =
+    "mensaje-offline";
+
+
+  aviso.textContent =
+    texto;
+
+
+  aviso.style.position =
+    "fixed";
+
+  aviso.style.left =
+    "50%";
+
+  aviso.style.bottom =
+    "20px";
+
+  aviso.style.transform =
+    "translateX(-50%)";
+
+  aviso.style.zIndex =
+    "99999";
+
+  aviso.style.padding =
+    "12px 18px";
+
+  aviso.style.borderRadius =
+    "12px";
+
+  aviso.style.background =
+    "#1f2937";
+
+  aviso.style.color =
+    "#ffffff";
+
+  aviso.style.fontSize =
+    "14px";
+
+  aviso.style.boxShadow =
+    "0 8px 25px rgba(0,0,0,.18)";
+
+  aviso.style.maxWidth =
+    "90%";
+
+  aviso.style.textAlign =
+    "center";
+
+
+  document.body.appendChild(
+    aviso
+  );
+
+
+  setTimeout(
+    () => {
+
+      aviso.remove();
+
+    },
+    4000
+  );
 }
 
 
@@ -145,11 +519,15 @@ function userKey(nombre) {
    CONVERSIÓN DE DATOS
    ========================================================= */
 
-function uuidValido(valor) {
+function uuidValido(
+  valor
+) {
 
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     .test(
-      String(valor || "")
+      String(
+        valor || ""
+      )
     );
 }
 
@@ -176,11 +554,16 @@ function hoyISO() {
 
   return d
     .toISOString()
-    .slice(0, 10);
+    .slice(
+      0,
+      10
+    );
 }
 
 
-function parseFechaLocal(valor) {
+function parseFechaLocal(
+  valor
+) {
 
   if (!valor) {
 
@@ -188,7 +571,10 @@ function parseFechaLocal(valor) {
   }
 
   const texto =
-    String(valor);
+    String(
+      valor
+    );
+
 
   if (
     /^\d{4}-\d{2}-\d{2}$/.test(
@@ -203,7 +589,10 @@ function parseFechaLocal(valor) {
     ] =
       texto
         .split("-")
-        .map(Number);
+        .map(
+          Number
+        );
+
 
     return new Date(
       y,
@@ -215,24 +604,37 @@ function parseFechaLocal(valor) {
     );
   }
 
-  return new Date(valor);
+
+  return new Date(
+    valor
+  );
 }
 
 
-function fechaTexto(v) {
+function fechaTexto(
+  v
+) {
 
   return v
-    ? parseFechaLocal(v)
-        .toLocaleDateString("es-EC")
+    ? parseFechaLocal(
+        v
+      ).toLocaleDateString(
+        "es-EC"
+      )
     : "";
 }
 
 
-function fechaISO(valor) {
+function fechaISO(
+  valor
+) {
 
   return String(
     valor || ""
-  ).slice(0, 10);
+  ).slice(
+    0,
+    10
+  );
 }
 
 
@@ -240,7 +642,9 @@ function fechaISO(valor) {
    UTILIDADES
    ========================================================= */
 
-function escapeHtml(s) {
+function escapeHtml(
+  s
+) {
 
   return String(
     s ?? ""
@@ -248,11 +652,16 @@ function escapeHtml(s) {
     /[&<>"']/g,
     c =>
       ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
+        "&":
+          "&amp;",
+        "<":
+          "&lt;",
+        ">":
+          "&gt;",
+        '"':
+          "&quot;",
+        "'":
+          "&#039;"
       }[c])
   );
 }
@@ -292,7 +701,8 @@ function crearFijosDefault() {
       ...g,
 
       creado:
-        new Date().toISOString()
+        new Date()
+          .toISOString()
 
     })
   );
@@ -307,18 +717,27 @@ function guardarDatosLocal() {
 
   if (!usuario) return;
 
+
   escribirLocal(
-    userKey("movimientos"),
+    userKey(
+      "movimientos"
+    ),
     movimientos
   );
 
+
   escribirLocal(
-    userKey("fijos"),
+    userKey(
+      "fijos"
+    ),
     gastosFijos
   );
 
+
   escribirLocal(
-    userKey("distribucion"),
+    userKey(
+      "distribucion"
+    ),
     distribucion
   );
 }
@@ -328,8 +747,11 @@ function guardarMovimientosLocal() {
 
   if (!usuario) return;
 
+
   escribirLocal(
-    userKey("movimientos"),
+    userKey(
+      "movimientos"
+    ),
     movimientos
   );
 }
@@ -339,8 +761,11 @@ function guardarFijosLocal() {
 
   if (!usuario) return;
 
+
   escribirLocal(
-    userKey("fijos"),
+    userKey(
+      "fijos"
+    ),
     gastosFijos
   );
 }
@@ -350,8 +775,11 @@ function guardarDistribucionLocal() {
 
   if (!usuario) return;
 
+
   escribirLocal(
-    userKey("distribucion"),
+    userKey(
+      "distribucion"
+    ),
     distribucion
   );
 }
@@ -361,12 +789,16 @@ function guardarDistribucionLocal() {
    MAPEO DE MOVIMIENTOS
    ========================================================= */
 
-function movimientoASupabase(m) {
+function movimientoASupabase(
+  m
+) {
 
   return {
 
     id:
-      uuidValido(m.id)
+      uuidValido(
+        m.id
+      )
         ? m.id
         : nuevoUUID(),
 
@@ -374,23 +806,31 @@ function movimientoASupabase(m) {
       usuario.id,
 
     tipo:
-      m.tipo || "gasto",
+      m.tipo ||
+      "gasto",
 
     categoria_id:
       (
-        m.tipo === "gasto" &&
-        uuidValido(m.categoria)
+        m.tipo ===
+          "gasto" &&
+        uuidValido(
+          m.categoria
+        )
       )
         ? m.categoria
         : null,
 
     gasto_fijo_id:
-      uuidValido(m.origenFijo)
+      uuidValido(
+        m.origenFijo
+      )
         ? m.origenFijo
         : null,
 
     monto:
-      Number(m.monto) || 0,
+      Number(
+        m.monto
+      ) || 0,
 
     descripcion:
       m.descripcion ||
@@ -401,14 +841,18 @@ function movimientoASupabase(m) {
       null,
 
     fecha:
-      fechaISO(m.fecha) ||
+      fechaISO(
+        m.fecha
+      ) ||
       hoyISO()
 
   };
 }
 
 
-function movimientoDesdeSupabase(row) {
+function movimientoDesdeSupabase(
+  row
+) {
 
   return {
 
@@ -421,15 +865,19 @@ function movimientoDesdeSupabase(row) {
     categoria:
       row.categoria_id ||
       (
-        row.tipo === "ahorro"
+        row.tipo ===
+          "ahorro"
           ? "ahorro"
-          : row.tipo === "retiro_ahorro"
+          : row.tipo ===
+              "retiro_ahorro"
             ? "retiro_ahorro"
             : ""
       ),
 
     monto:
-      Number(row.monto) || 0,
+      Number(
+        row.monto
+      ) || 0,
 
     descripcion:
       row.descripcion ||
@@ -440,7 +888,9 @@ function movimientoDesdeSupabase(row) {
       "",
 
     fecha:
-      fechaISO(row.fecha),
+      fechaISO(
+        row.fecha
+      ),
 
     origenFijo:
       row.gasto_fijo_id ||
@@ -454,12 +904,16 @@ function movimientoDesdeSupabase(row) {
    MAPEO DE GASTOS FIJOS
    ========================================================= */
 
-function fijoASupabase(g) {
+function fijoASupabase(
+  g
+) {
 
   return {
 
     id:
-      uuidValido(g.id)
+      uuidValido(
+        g.id
+      )
         ? g.id
         : nuevoUUID(),
 
@@ -470,19 +924,26 @@ function fijoASupabase(g) {
       g.nombre,
 
     monto:
-      Number(g.monto) || 0,
+      Number(
+        g.monto
+      ) || 0,
 
     dia:
-      Number(g.dia) || 1,
+      Number(
+        g.dia
+      ) || 1,
 
     activo:
-      g.activo !== false
+      g.activo !==
+      false
 
   };
 }
 
 
-function fijoDesdeSupabase(row) {
+function fijoDesdeSupabase(
+  row
+) {
 
   return {
 
@@ -493,17 +954,23 @@ function fijoDesdeSupabase(row) {
       row.nombre,
 
     monto:
-      Number(row.monto) || 0,
+      Number(
+        row.monto
+      ) || 0,
 
     dia:
-      Number(row.dia) || 1,
+      Number(
+        row.dia
+      ) || 1,
 
     activo:
-      row.activo !== false,
+      row.activo !==
+      false,
 
     creado:
       row.created_at ||
-      new Date().toISOString()
+      new Date()
+        .toISOString()
 
   };
 }
@@ -513,12 +980,16 @@ function fijoDesdeSupabase(row) {
    MAPEO DE CATEGORÍAS
    ========================================================= */
 
-function categoriaASupabase(c) {
+function categoriaASupabase(
+  c
+) {
 
   return {
 
     id:
-      uuidValido(c.id)
+      uuidValido(
+        c.id
+      )
         ? c.id
         : nuevoUUID(),
 
@@ -533,16 +1004,21 @@ function categoriaASupabase(c) {
       "📦",
 
     limite:
-      Number(c.limite) || 0,
+      Number(
+        c.limite
+      ) || 0,
 
     activo:
-      c.activo !== false
+      c.activo !==
+      false
 
   };
 }
 
 
-function categoriaDesdeSupabase(row) {
+function categoriaDesdeSupabase(
+  row
+) {
 
   return {
 
@@ -557,10 +1033,13 @@ function categoriaDesdeSupabase(row) {
       "📦",
 
     limite:
-      Number(row.limite) || 0,
+      Number(
+        row.limite
+      ) || 0,
 
     activo:
-      row.activo !== false
+      row.activo !==
+      false
 
   };
 }
@@ -574,34 +1053,46 @@ async function migrarDatosLocalesASupabase() {
 
   if (!usuario) return;
 
+
   try {
 
     const movimientosLocales =
       leerLocal(
-        userKey("movimientos"),
+        userKey(
+          "movimientos"
+        ),
         []
       ) || [];
+
 
     const fijosLocales =
       leerLocal(
-        userKey("fijos"),
+        userKey(
+          "fijos"
+        ),
         []
       ) || [];
 
+
     const categoriasLocales =
       leerLocal(
-        userKey("distribucion"),
+        userKey(
+          "distribucion"
+        ),
         null
       );
 
 
     if (
-      Array.isArray(categoriasLocales) &&
+      Array.isArray(
+        categoriasLocales
+      ) &&
       categoriasLocales.length
     ) {
 
       const mapaCategorias =
         {};
+
 
       const categoriasParaSubir =
         categoriasLocales.map(
@@ -610,13 +1101,20 @@ async function migrarDatosLocalesASupabase() {
             const viejoId =
               c.id;
 
+
             const nuevoId =
-              uuidValido(c.id)
+              uuidValido(
+                c.id
+              )
                 ? c.id
                 : nuevoUUID();
 
-            mapaCategorias[viejoId] =
+
+            mapaCategorias[
+              viejoId
+            ] =
               nuevoId;
+
 
             return {
 
@@ -639,7 +1137,8 @@ async function migrarDatosLocalesASupabase() {
                 ) || 0,
 
               activo:
-                c.activo !== false
+                c.activo !==
+                false
 
             };
           }
@@ -650,7 +1149,9 @@ async function migrarDatosLocalesASupabase() {
         error
       } =
       await supabaseClient
-        .from("categorias")
+        .from(
+          "categorias"
+        )
         .upsert(
           categoriasParaSubir,
           {
@@ -695,7 +1196,9 @@ async function migrarDatosLocalesASupabase() {
                   ...m,
 
                   id:
-                    uuidValido(m.id)
+                    uuidValido(
+                      m.id
+                    )
                       ? m.id
                       : nuevoUUID(),
 
@@ -714,7 +1217,6 @@ async function migrarDatosLocalesASupabase() {
                 })
               )
             : [];
-
       }
     }
 
@@ -727,12 +1229,15 @@ async function migrarDatosLocalesASupabase() {
         data
       } =
       await supabaseClient
-        .from("categorias")
+        .from(
+          "categorias"
+        )
         .select("*")
         .eq(
           "user_id",
           usuario.id
         );
+
 
       if (
         Array.isArray(data) &&
@@ -761,7 +1266,9 @@ async function migrarDatosLocalesASupabase() {
             ...g,
 
             id:
-              uuidValido(g.id)
+              uuidValido(
+                g.id
+              )
                 ? g.id
                 : nuevoUUID()
 
@@ -779,7 +1286,9 @@ async function migrarDatosLocalesASupabase() {
         error
       } =
       await supabaseClient
-        .from("gastos_fijos")
+        .from(
+          "gastos_fijos"
+        )
         .upsert(
           filas,
           {
@@ -816,7 +1325,9 @@ async function migrarDatosLocalesASupabase() {
         error
       } =
       await supabaseClient
-        .from("movimientos")
+        .from(
+          "movimientos"
+        )
         .upsert(
           filas,
           {
@@ -845,13 +1356,234 @@ async function migrarDatosLocalesASupabase() {
 
     guardarDatosLocal();
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       "Error durante migración local:",
       error
     );
   }
+}
+
+
+/* =========================================================
+   SINCRONIZAR PENDIENTES OFFLINE
+   ========================================================= */
+
+async function sincronizarPendientesMovimientos() {
+
+  if (!usuario) {
+
+    return true;
+  }
+
+
+  if (!estaOnline()) {
+
+    return false;
+  }
+
+
+  const pendientesEliminar =
+    leerPendientesEliminados();
+
+
+  const pendientesGuardar =
+    leerPendientesMovimientos();
+
+
+  let todoBien =
+    true;
+
+
+  /*
+   * Primero eliminar.
+   */
+
+  for (
+    const id
+    of pendientesEliminar
+  ) {
+
+    try {
+
+      const {
+        error
+      } =
+      await supabaseClient
+        .from(
+          "movimientos"
+        )
+        .delete()
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "user_id",
+          usuario.id
+        );
+
+
+      if (
+        error
+      ) {
+
+        console.error(
+          "Error sincronizando eliminación:",
+          error
+        );
+
+        todoBien =
+          false;
+
+        continue;
+      }
+
+
+      quitarEliminadoPendiente(
+        id
+      );
+
+      quitarMovimientoPendiente(
+        id
+      );
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "Error sincronizando eliminación offline:",
+        error
+      );
+
+      todoBien =
+        false;
+    }
+  }
+
+
+  /*
+   * Después guardar/actualizar.
+   */
+
+  const pendientesActuales =
+    leerPendientesMovimientos();
+
+
+  for (
+    const movimiento
+    of pendientesActuales
+  ) {
+
+    if (
+      leerPendientesEliminados()
+        .includes(
+          movimiento.id
+        )
+    ) {
+
+      continue;
+    }
+
+
+    try {
+
+      const fila =
+        movimientoASupabase(
+          movimiento
+        );
+
+
+      const {
+        data,
+        error
+      } =
+      await supabaseClient
+        .from(
+          "movimientos"
+        )
+        .upsert(
+          fila,
+          {
+            onConflict:
+              "id"
+          }
+        )
+        .select()
+        .single();
+
+
+      if (
+        error
+      ) {
+
+        console.error(
+          "Error sincronizando movimiento:",
+          error
+        );
+
+        todoBien =
+          false;
+
+        continue;
+      }
+
+
+      const convertido =
+        movimientoDesdeSupabase(
+          data
+        );
+
+
+      const indice =
+        movimientos.findIndex(
+          x =>
+            x.id ===
+            movimiento.id
+        );
+
+
+      if (
+        indice >= 0
+      ) {
+
+        movimientos[indice] =
+          convertido;
+
+      } else {
+
+        movimientos.push(
+          convertido
+        );
+      }
+
+
+      quitarMovimientoPendiente(
+        movimiento.id
+      );
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "Error sincronizando movimiento offline:",
+        error
+      );
+
+      todoBien =
+        false;
+    }
+  }
+
+
+  guardarMovimientosLocal();
+
+  return todoBien;
 }
 
 
@@ -863,16 +1595,21 @@ async function cargarDatosSupabase() {
 
   if (!usuario) return;
 
+
   try {
 
     const {
       data:
         categoriasData,
+
       error:
         categoriasError
+
     } =
     await supabaseClient
-      .from("categorias")
+      .from(
+        "categorias"
+      )
       .select("*")
       .eq(
         "user_id",
@@ -881,12 +1618,15 @@ async function cargarDatosSupabase() {
       .order(
         "created_at",
         {
-          ascending: true
+          ascending:
+            true
         }
       );
 
 
-    if (categoriasError) {
+    if (
+      categoriasError
+    ) {
 
       console.error(
         "Error cargando categorías:",
@@ -897,7 +1637,8 @@ async function cargarDatosSupabase() {
 
       distribucion =
         (
-          categoriasData || []
+          categoriasData ||
+          []
         ).map(
           categoriaDesdeSupabase
         );
@@ -916,7 +1657,9 @@ async function cargarDatosSupabase() {
         defaults.map(
           c => ({
 
-            ...categoriaASupabase(c),
+            ...categoriaASupabase(
+              c
+            ),
 
             id:
               nuevoUUID()
@@ -930,7 +1673,9 @@ async function cargarDatosSupabase() {
         error
       } =
       await supabaseClient
-        .from("categorias")
+        .from(
+          "categorias"
+        )
         .insert(
           filas
         )
@@ -951,7 +1696,8 @@ async function cargarDatosSupabase() {
 
         distribucion =
           (
-            data || []
+            data ||
+            []
           ).map(
             categoriaDesdeSupabase
           );
@@ -962,11 +1708,15 @@ async function cargarDatosSupabase() {
     const {
       data:
         fijosData,
+
       error:
         fijosError
+
     } =
     await supabaseClient
-      .from("gastos_fijos")
+      .from(
+        "gastos_fijos"
+      )
       .select("*")
       .eq(
         "user_id",
@@ -975,12 +1725,15 @@ async function cargarDatosSupabase() {
       .order(
         "created_at",
         {
-          ascending: true
+          ascending:
+            true
         }
       );
 
 
-    if (fijosError) {
+    if (
+      fijosError
+    ) {
 
       console.error(
         "Error cargando gastos fijos:",
@@ -991,21 +1744,50 @@ async function cargarDatosSupabase() {
 
       gastosFijos =
         (
-          fijosData || []
+          fijosData ||
+          []
         ).map(
           fijoDesdeSupabase
         );
     }
 
 
+    /*
+     * Mantener pendientes locales
+     * mientras se refresca lo remoto.
+     */
+
+    const idsPendientes =
+      new Set(
+        leerPendientesMovimientos()
+          .map(
+            x =>
+              x.id
+          )
+      );
+
+
+    const localesPendientes =
+      movimientos.filter(
+        x =>
+          idsPendientes.has(
+            x.id
+          )
+      );
+
+
     const {
       data:
         movimientosData,
+
       error:
         movimientosError
+
     } =
     await supabaseClient
-      .from("movimientos")
+      .from(
+        "movimientos"
+      )
       .select("*")
       .eq(
         "user_id",
@@ -1014,18 +1796,22 @@ async function cargarDatosSupabase() {
       .order(
         "fecha",
         {
-          ascending: false
+          ascending:
+            false
         }
       )
       .order(
         "created_at",
         {
-          ascending: false
+          ascending:
+            false
         }
       );
 
 
-    if (movimientosError) {
+    if (
+      movimientosError
+    ) {
 
       console.error(
         "Error cargando movimientos:",
@@ -1034,18 +1820,33 @@ async function cargarDatosSupabase() {
 
     } else {
 
-      movimientos =
+      const remotos =
         (
-          movimientosData || []
+          movimientosData ||
+          []
         ).map(
           movimientoDesdeSupabase
         );
+
+
+      movimientos =
+        [
+          ...remotos.filter(
+            remoto =>
+              !idsPendientes.has(
+                remoto.id
+              )
+          ),
+          ...localesPendientes
+        ];
     }
 
 
     guardarDatosLocal();
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       "Error cargando datos desde Supabase:",
@@ -1065,28 +1866,32 @@ async function cargarDatos() {
 
 
   /*
-   * =======================================================
-   * 1. CARGAR PRIMERO LOS DATOS LOCALES
-   * =======================================================
+   * SIEMPRE cargar primero lo local.
    */
 
   movimientos =
     leerLocal(
-      userKey("movimientos"),
+      userKey(
+        "movimientos"
+      ),
       []
     ) || [];
 
 
   gastosFijos =
     leerLocal(
-      userKey("fijos"),
+      userKey(
+        "fijos"
+      ),
       []
     ) || [];
 
 
   distribucion =
     leerLocal(
-      userKey("distribucion"),
+      userKey(
+        "distribucion"
+      ),
       null
     );
 
@@ -1102,17 +1907,17 @@ async function cargarDatos() {
   }
 
 
+  construirCategorias();
+
+
   /*
-   * =======================================================
-   * 2. SIN INTERNET
-   * =======================================================
+   * SIN INTERNET:
+   * no tocar Supabase.
    */
 
   if (
-    !navigator.onLine
+    !estaOnline()
   ) {
-
-    construirCategorias();
 
     actualizarSelects();
 
@@ -1121,209 +1926,540 @@ async function cargarDatos() {
 
 
   /*
-   * =======================================================
-   * 3. CON INTERNET
-   * =======================================================
+   * CON INTERNET:
+   * primero sincronizar pendientes,
+   * luego actualizar desde Supabase.
    */
 
-  await migrarDatosLocalesASupabase();
+  await sincronizarPendientesMovimientos();
 
   await cargarDatosSupabase();
 
   construirCategorias();
+
+  actualizarSelects();
 }
 
+
 /* =========================================================
-   GUARDAR MOVIMIENTO EN SUPABASE
+   CATEGORÍAS INTERNAS
    ========================================================= */
 
-async function guardarMovimientoSupabase(m) {
+function construirCategorias() {
 
-  if (!usuario) return false;
-
-
-  const fila =
-    movimientoASupabase(m);
+  categorias = {};
 
 
-  const {
-    data,
-    error
-  } =
-  await supabaseClient
-    .from("movimientos")
-    .upsert(
-      fila,
-      {
-        onConflict:
-          "id"
-      }
+  distribucion
+    .filter(
+      x =>
+        x.activo !==
+        false
     )
-    .select()
-    .single();
+    .forEach(
+      x => {
+
+        categorias[
+          x.id
+        ] = [
+
+          x.icono ||
+          "📦",
+
+          x.nombre,
+
+          Number(
+            x.limite
+          ) || 0
+
+        ];
+
+      }
+    );
+}
 
 
-  if (error) {
+/* =========================================================
+   GUARDAR MOVIMIENTO SUPABASE / OFFLINE
+   ========================================================= */
+
+async function guardarMovimientoSupabase(
+  m
+) {
+
+  if (!usuario) {
+
+    return false;
+  }
+
+
+  /*
+   * Ya está guardado localmente.
+   */
+
+  guardarMovimientosLocal();
+
+
+  /*
+   * SIN INTERNET
+   */
+
+  if (
+    !estaOnline()
+  ) {
+
+    agregarMovimientoPendiente(
+      m
+    );
+
+
+    mostrarAvisoOffline(
+      "Sin conexión. El movimiento quedó guardado en este dispositivo y se sincronizará al volver internet."
+    );
+
+
+    return true;
+  }
+
+
+  try {
+
+    const fila =
+      movimientoASupabase(
+        m
+      );
+
+
+    const {
+      data,
+      error
+    } =
+    await supabaseClient
+      .from(
+        "movimientos"
+      )
+      .upsert(
+        fila,
+        {
+          onConflict:
+            "id"
+        }
+      )
+      .select()
+      .single();
+
+
+    if (error) {
+
+      console.error(
+        "Error guardando movimiento:",
+        error
+      );
+
+
+      /*
+       * Si la conexión se perdió durante
+       * el envío, dejamos la operación
+       * pendiente.
+       */
+
+      if (
+        !estaOnline()
+      ) {
+
+        agregarMovimientoPendiente(
+          m
+        );
+
+
+        mostrarAvisoOffline(
+          "Se perdió la conexión. El movimiento quedó guardado localmente y se sincronizará después."
+        );
+
+
+        return true;
+      }
+
+
+      alert(
+        "No se pudo guardar el movimiento en la nube."
+      );
+
+
+      return false;
+    }
+
+
+    const convertido =
+      movimientoDesdeSupabase(
+        data
+      );
+
+
+    const indice =
+      movimientos.findIndex(
+        x =>
+          x.id ===
+          m.id
+      );
+
+
+    if (
+      indice >= 0
+    ) {
+
+      movimientos[indice] =
+        convertido;
+    }
+
+
+    quitarMovimientoPendiente(
+      m.id
+    );
+
+
+    guardarMovimientosLocal();
+
+
+    return true;
+
+  } catch (
+    error
+  ) {
 
     console.error(
       "Error guardando movimiento:",
       error
     );
 
+
+    if (
+      !estaOnline()
+    ) {
+
+      agregarMovimientoPendiente(
+        m
+      );
+
+
+      mostrarAvisoOffline(
+        "Sin conexión. El movimiento quedó guardado localmente y se sincronizará al volver internet."
+      );
+
+
+      return true;
+    }
+
+
     alert(
-      "No se pudo guardar el movimiento en la nube. El dato queda en el respaldo local."
+      "No se pudo guardar el movimiento."
     );
+
+
+    return false;
+  }
+}
+
+
+/* =========================================================
+   ACTUALIZAR MOVIMIENTO SUPABASE / OFFLINE
+   ========================================================= */
+
+async function actualizarMovimientoSupabase(
+  m
+) {
+
+  if (!usuario) {
 
     return false;
   }
 
 
-  const convertido =
-    movimientoDesdeSupabase(
-      data
-    );
-
-
-  const indice =
-    movimientos.findIndex(
-      x =>
-        x.id === m.id
-    );
+  guardarMovimientosLocal();
 
 
   if (
-    indice >= 0
+    !estaOnline()
   ) {
 
-    movimientos[indice] =
-      convertido;
+    agregarMovimientoPendiente(
+      m
+    );
+
+
+    mostrarAvisoOffline(
+      "Sin conexión. El cambio quedó guardado en este dispositivo y se sincronizará al volver internet."
+    );
+
+
+    return true;
   }
 
 
-  guardarMovimientosLocal();
+  try {
 
-  return true;
-}
-
-
-/* =========================================================
-   ACTUALIZAR MOVIMIENTO EN SUPABASE
-   ========================================================= */
-
-async function actualizarMovimientoSupabase(m) {
-
-  if (!usuario) return false;
+    const fila =
+      movimientoASupabase(
+        m
+      );
 
 
-  const fila =
-    movimientoASupabase(m);
+    const {
+      data,
+      error
+    } =
+    await supabaseClient
+      .from(
+        "movimientos"
+      )
+      .update(
+        fila
+      )
+      .eq(
+        "id",
+        m.id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      )
+      .select()
+      .single();
 
 
-  const {
-    data,
-    error
-  } =
-  await supabaseClient
-    .from("movimientos")
-    .update(
-      fila
-    )
-    .eq(
-      "id",
+    if (error) {
+
+      console.error(
+        "Error actualizando movimiento:",
+        error
+      );
+
+
+      if (
+        !estaOnline()
+      ) {
+
+        agregarMovimientoPendiente(
+          m
+        );
+
+
+        mostrarAvisoOffline(
+          "Se perdió la conexión. El cambio quedó guardado localmente."
+        );
+
+
+        return true;
+      }
+
+
+      alert(
+        "No se pudo actualizar el movimiento."
+      );
+
+
+      return false;
+    }
+
+
+    const convertido =
+      movimientoDesdeSupabase(
+        data
+      );
+
+
+    const indice =
+      movimientos.findIndex(
+        x =>
+          x.id ===
+          m.id
+      );
+
+
+    if (
+      indice >= 0
+    ) {
+
+      movimientos[indice] =
+        convertido;
+    }
+
+
+    quitarMovimientoPendiente(
       m.id
-    )
-    .eq(
-      "user_id",
-      usuario.id
-    )
-    .select()
-    .single();
+    );
 
 
-  if (error) {
+    guardarMovimientosLocal();
+
+
+    return true;
+
+  } catch (
+    error
+  ) {
 
     console.error(
       "Error actualizando movimiento:",
       error
     );
 
+
+    if (
+      !estaOnline()
+    ) {
+
+      agregarMovimientoPendiente(
+        m
+      );
+
+
+      mostrarAvisoOffline(
+        "Sin conexión. El cambio quedó guardado localmente."
+      );
+
+
+      return true;
+    }
+
+
     alert(
-      "No se pudo actualizar el movimiento en Supabase."
+      "No se pudo actualizar el movimiento."
     );
+
+
+    return false;
+  }
+}
+
+
+/* =========================================================
+   ELIMINAR MOVIMIENTO SUPABASE / OFFLINE
+   ========================================================= */
+
+async function eliminarMovimientoSupabase(
+  id
+) {
+
+  if (!usuario) {
 
     return false;
   }
 
 
-  const convertido =
-    movimientoDesdeSupabase(
-      data
-    );
-
-
-  const indice =
-    movimientos.findIndex(
-      x =>
-        x.id === m.id
-    );
-
+  /*
+   * SIN INTERNET
+   */
 
   if (
-    indice >= 0
+    !estaOnline()
   ) {
 
-    movimientos[indice] =
-      convertido;
+    agregarEliminadoPendiente(
+      id
+    );
+
+
+    mostrarAvisoOffline(
+      "Sin conexión. La eliminación quedó guardada localmente y se sincronizará al volver internet."
+    );
+
+
+    return true;
   }
 
 
-  guardarMovimientosLocal();
+  try {
 
-  return true;
-}
+    const {
+      error
+    } =
+    await supabaseClient
+      .from(
+        "movimientos"
+      )
+      .delete()
+      .eq(
+        "id",
+        id
+      )
+      .eq(
+        "user_id",
+        usuario.id
+      );
 
 
-/* =========================================================
-   ELIMINAR MOVIMIENTO SUPABASE
-   ========================================================= */
+    if (error) {
 
-async function eliminarMovimientoSupabase(id) {
+      console.error(
+        "Error eliminando movimiento:",
+        error
+      );
 
-  if (!usuario) return false;
+
+      if (
+        !estaOnline()
+      ) {
+
+        agregarEliminadoPendiente(
+          id
+        );
 
 
-  const {
-    error
-  } =
-  await supabaseClient
-    .from("movimientos")
-    .delete()
-    .eq(
-      "id",
+        return true;
+      }
+
+
+      alert(
+        "No se pudo eliminar el movimiento."
+      );
+
+
+      return false;
+    }
+
+
+    quitarMovimientoPendiente(
       id
-    )
-    .eq(
-      "user_id",
-      usuario.id
+    );
+
+    quitarEliminadoPendiente(
+      id
     );
 
 
-  if (error) {
+    return true;
+
+  } catch (
+    error
+  ) {
 
     console.error(
       "Error eliminando movimiento:",
       error
     );
 
+
+    if (
+      !estaOnline()
+    ) {
+
+      agregarEliminadoPendiente(
+        id
+      );
+
+
+      return true;
+    }
+
+
     alert(
-      "No se pudo eliminar el movimiento de Supabase."
+      "No se pudo eliminar el movimiento."
     );
+
 
     return false;
   }
-
-
-  return true;
 }
 
 
@@ -1331,13 +2467,17 @@ async function eliminarMovimientoSupabase(id) {
    GUARDAR GASTO FIJO SUPABASE
    ========================================================= */
 
-async function guardarFijoSupabase(g) {
+async function guardarFijoSupabase(
+  g
+) {
 
   if (!usuario) return false;
 
 
   const fila =
-    fijoASupabase(g);
+    fijoASupabase(
+      g
+    );
 
 
   const {
@@ -1345,7 +2485,9 @@ async function guardarFijoSupabase(g) {
     error
   } =
   await supabaseClient
-    .from("gastos_fijos")
+    .from(
+      "gastos_fijos"
+    )
     .upsert(
       fila,
       {
@@ -1381,7 +2523,8 @@ async function guardarFijoSupabase(g) {
   const indice =
     gastosFijos.findIndex(
       x =>
-        x.id === g.id
+        x.id ===
+        g.id
     );
 
 
@@ -1410,13 +2553,17 @@ async function guardarFijoSupabase(g) {
    ACTUALIZAR GASTO FIJO SUPABASE
    ========================================================= */
 
-async function actualizarFijoSupabase(g) {
+async function actualizarFijoSupabase(
+  g
+) {
 
   if (!usuario) return false;
 
 
   const fila =
-    fijoASupabase(g);
+    fijoASupabase(
+      g
+    );
 
 
   const {
@@ -1424,7 +2571,9 @@ async function actualizarFijoSupabase(g) {
     error
   } =
   await supabaseClient
-    .from("gastos_fijos")
+    .from(
+      "gastos_fijos"
+    )
     .update(
       fila
     )
@@ -1464,7 +2613,8 @@ async function actualizarFijoSupabase(g) {
   const indice =
     gastosFijos.findIndex(
       x =>
-        x.id === g.id
+        x.id ===
+        g.id
     );
 
 
@@ -1487,7 +2637,9 @@ async function actualizarFijoSupabase(g) {
    ELIMINAR / DESACTIVAR GASTO FIJO
    ========================================================= */
 
-async function desactivarFijoSupabase(id) {
+async function desactivarFijoSupabase(
+  id
+) {
 
   if (!usuario) return false;
 
@@ -1496,9 +2648,12 @@ async function desactivarFijoSupabase(id) {
     error
   } =
   await supabaseClient
-    .from("gastos_fijos")
+    .from(
+      "gastos_fijos"
+    )
     .update({
-      activo: false
+      activo:
+        false
     })
     .eq(
       "id",
@@ -1533,13 +2688,17 @@ async function desactivarFijoSupabase(id) {
    GUARDAR CATEGORÍA SUPABASE
    ========================================================= */
 
-async function guardarCategoriaSupabase(c) {
+async function guardarCategoriaSupabase(
+  c
+) {
 
   if (!usuario) return false;
 
 
   const fila =
-    categoriaASupabase(c);
+    categoriaASupabase(
+      c
+    );
 
 
   const {
@@ -1547,7 +2706,9 @@ async function guardarCategoriaSupabase(c) {
     error
   } =
   await supabaseClient
-    .from("categorias")
+    .from(
+      "categorias"
+    )
     .upsert(
       fila,
       {
@@ -1583,7 +2744,8 @@ async function guardarCategoriaSupabase(c) {
   const indice =
     distribucion.findIndex(
       x =>
-        x.id === c.id
+        x.id ===
+        c.id
     );
 
 
@@ -1614,7 +2776,9 @@ async function guardarCategoriaSupabase(c) {
    DESACTIVAR CATEGORÍA
    ========================================================= */
 
-async function desactivarCategoriaSupabase(id) {
+async function desactivarCategoriaSupabase(
+  id
+) {
 
   if (!usuario) return false;
 
@@ -1623,9 +2787,12 @@ async function desactivarCategoriaSupabase(id) {
     error
   } =
   await supabaseClient
-    .from("categorias")
+    .from(
+      "categorias"
+    )
     .update({
-      activo: false
+      activo:
+        false
     })
     .eq(
       "id",
@@ -1688,26 +2855,35 @@ function cerrarPaneles() {
   [
     "modalDistribucion",
     "formGastoFijo"
-  ].forEach(id => {
+  ].forEach(
+    id => {
 
-    const el =
-      $(id);
+      const el =
+        $(id);
 
-    if (el) {
+      if (el) {
 
-      el.style.display =
-        "none";
+        el.style.display =
+          "none";
+      }
+
     }
-
-  });
+  );
 
 
   try {
 
-    $("formGasto").reset();
-    $("formIngreso").reset();
-    $("formEdicion").reset();
-    $("formGastoFijo").reset();
+    $("formGasto")
+      .reset();
+
+    $("formIngreso")
+      .reset();
+
+    $("formEdicion")
+      .reset();
+
+    $("formGastoFijo")
+      .reset();
 
   } catch {}
 
@@ -1715,7 +2891,8 @@ function cerrarPaneles() {
   try {
 
     $("fijoId")
-      .value = "";
+      .value =
+      "";
 
   } catch {}
 
@@ -1728,7 +2905,9 @@ function cerrarPaneles() {
 
     $("tipoSalida")
       .dispatchEvent(
-        new Event("change")
+        new Event(
+          "change"
+        )
       );
 
   } catch {}
@@ -1750,8 +2929,10 @@ function mensaje(
 
   if (!el) return;
 
+
   el.textContent =
     texto;
+
 
   el.className =
     "auth-mensaje" +
@@ -1800,27 +2981,23 @@ async function mostrarApp() {
 
 
   /*
-   * Mostrar inmediatamente la aplicación
-   * con los datos disponibles localmente.
+   * Mostrar inmediatamente los datos
+   * locales disponibles.
    */
 
   render();
 
 
   /*
-   * Cargar desde localStorage y, si hay
-   * conexión, sincronizar con Supabase.
+   * Después cargar/sincronizar.
    */
 
   await cargarDatos();
 
 
-  /*
-   * Volver a renderizar después de la carga.
-   */
-
   render();
 }
+
 
 /* =========================================================
    CERRAR SESIÓN
@@ -1834,7 +3011,9 @@ async function cerrarSesion() {
       .auth
       .signOut();
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       "Error cerrando sesión:",
@@ -1852,12 +3031,20 @@ async function cerrarSesion() {
   } catch {}
 
 
-  usuario = null;
+  usuario =
+    null;
 
-  movimientos = [];
-  gastosFijos = [];
-  categorias = {};
-  distribucion = [];
+  movimientos =
+    [];
+
+  gastosFijos =
+    [];
+
+  categorias =
+    {};
+
+  distribucion =
+    [];
 
 
   cerrarPaneles();
@@ -2006,7 +3193,10 @@ $("formRegistro")
     }
 
 
-    if (p1 !== p2) {
+    if (
+      p1 !==
+      p2
+    ) {
 
       return mensaje(
         "registroMensaje",
@@ -2016,7 +3206,10 @@ $("formRegistro")
     }
 
 
-    if (p1.length < 6) {
+    if (
+      p1.length <
+      6
+    ) {
 
       return mensaje(
         "registroMensaje",
@@ -2043,6 +3236,7 @@ $("formRegistro")
         options: {
 
           data: {
+
             nombre
           }
 
@@ -2058,6 +3252,7 @@ $("formRegistro")
         error
       );
 
+
       return mensaje(
         "registroMensaje",
         error.message ||
@@ -2067,7 +3262,9 @@ $("formRegistro")
     }
 
 
-    if (!data?.user) {
+    if (
+      !data?.user
+    ) {
 
       return mensaje(
         "registroMensaje",
@@ -2077,7 +3274,9 @@ $("formRegistro")
     }
 
 
-    if (!data.session) {
+    if (
+      !data.session
+    ) {
 
       return mensaje(
         "registroMensaje",
@@ -2188,7 +3387,9 @@ $("formLogin")
     }
 
 
-    if (!data?.user) {
+    if (
+      !data?.user
+    ) {
 
       return mensaje(
         "loginMensaje",
@@ -2237,23 +3438,28 @@ function mostrarRecuperacion() {
     .style.display =
     "none";
 
+
   $("formRegistro")
     .style.display =
     "none";
 
+
   $("formRecuperarPassword")
     .style.display =
     "block";
+
 
   $("tabLogin")
     .classList.remove(
       "activo"
     );
 
+
   $("tabRegistro")
     .classList.remove(
       "activo"
     );
+
 
   $("recuperarCorreo")
     .value =
@@ -2261,6 +3467,7 @@ function mostrarRecuperacion() {
       .value
       .trim()
       .toLowerCase();
+
 
   $("recuperarCorreo")
     .focus();
@@ -2273,23 +3480,28 @@ function volverLogin() {
     .style.display =
     "none";
 
+
   $("formLogin")
     .style.display =
     "block";
 
+
   $("formRegistro")
     .style.display =
     "none";
+
 
   $("tabLogin")
     .classList.add(
       "activo"
     );
 
+
   $("tabRegistro")
     .classList.remove(
       "activo"
     );
+
 
   $("recuperarMensaje")
     .textContent =
@@ -2354,6 +3566,7 @@ $("formRecuperarPassword")
         "Error recuperación contraseña:",
         error
       );
+
 
       return mensaje(
         "recuperarMensaje",
@@ -2438,7 +3651,10 @@ $("formNuevaPassword")
         .value;
 
 
-    if (p1.length < 6) {
+    if (
+      p1.length <
+      6
+    ) {
 
       return mensaje(
         "nuevaPasswordMensaje",
@@ -2448,7 +3664,10 @@ $("formNuevaPassword")
     }
 
 
-    if (p1 !== p2) {
+    if (
+      p1 !==
+      p2
+    ) {
 
       return mensaje(
         "nuevaPasswordMensaje",
@@ -2477,6 +3696,7 @@ $("formNuevaPassword")
         "Error cambiando contraseña:",
         error
       );
+
 
       return mensaje(
         "nuevaPasswordMensaje",
@@ -2538,10 +3758,14 @@ function obtenerTotales() {
           "ingreso"
       )
       .reduce(
-        (s, m) =>
+        (
+          s,
+          m
+        ) =>
           s +
           Number(
-            m.monto || 0
+            m.monto ||
+            0
           ),
         0
       );
@@ -2555,10 +3779,14 @@ function obtenerTotales() {
           "gasto"
       )
       .reduce(
-        (s, m) =>
+        (
+          s,
+          m
+        ) =>
           s +
           Number(
-            m.monto || 0
+            m.monto ||
+            0
           ),
         0
       );
@@ -2572,10 +3800,14 @@ function obtenerTotales() {
           "ahorro"
       )
       .reduce(
-        (s, m) =>
+        (
+          s,
+          m
+        ) =>
           s +
           Number(
-            m.monto || 0
+            m.monto ||
+            0
           ),
         0
       );
@@ -2589,29 +3821,23 @@ function obtenerTotales() {
           "retiro_ahorro"
       )
       .reduce(
-        (s, m) =>
+        (
+          s,
+          m
+        ) =>
           s +
           Number(
-            m.monto || 0
+            m.monto ||
+            0
           ),
         0
       );
 
 
-  /*
-   * Gastos mostrados:
-   * gastos normales + aportes a ahorro.
-   */
-
   const gas =
     gastosNormales +
     aportes;
 
-
-  /*
-   * Ahorro acumulado:
-   * aportes - retiros.
-   */
 
   const ahorro =
     Math.max(
@@ -2621,24 +3847,10 @@ function obtenerTotales() {
     );
 
 
-  /*
-   * Balance:
-   * ingresos - gastos.
-   *
-   * Un retiro de ahorro NO modifica
-   * el balance.
-   */
-
   const balance =
     ing -
     gas;
 
-
-  /*
-   * Disponible:
-   * debe seguir exactamente igual
-   * al balance.
-   */
 
   const disponible =
     balance;
@@ -2684,27 +3896,37 @@ function renderResumen() {
 
   $("totalIngresos")
     .textContent =
-    money(ing);
+    money(
+      ing
+    );
 
 
   $("totalGastos")
     .textContent =
-    money(gas);
+    money(
+      gas
+    );
 
 
   $("totalBalance")
     .textContent =
-    money(balance);
+    money(
+      balance
+    );
 
 
   $("totalAhorro")
     .textContent =
-    money(ahorro);
+    money(
+      ahorro
+    );
 
 
   $("totalDisponible")
     .textContent =
-    money(disponible);
+    money(
+      disponible
+    );
 
 
   $("totalDisponible")
@@ -2731,10 +3953,12 @@ function renderCategorias() {
   const grid =
     $("gridCategorias");
 
+
   if (!grid) return;
 
 
-  grid.innerHTML = "";
+  grid.innerHTML =
+    "";
 
 
   distribucion
@@ -2756,10 +3980,14 @@ function renderCategorias() {
                   c.id
             )
             .reduce(
-              (s, m) =>
+              (
+                s,
+                m
+              ) =>
                 s +
                 Number(
-                  m.monto || 0
+                  m.monto ||
+                  0
                 ),
               0
             );
@@ -2792,7 +4020,10 @@ function renderCategorias() {
                   c.id
             )
             .sort(
-              (a, b) =>
+              (
+                a,
+                b
+              ) =>
                 parseFechaLocal(
                   b.fecha
                 ) -
@@ -2952,6 +4183,7 @@ function getFixedProgress(
               x.fecha
             );
 
+
           return (
             d.getFullYear() ===
               y &&
@@ -2964,10 +4196,14 @@ function getFixedProgress(
 
   const pagado =
     pagos.reduce(
-      (s, x) =>
+      (
+        s,
+        x
+      ) =>
         s +
         Number(
-          x.monto || 0
+          x.monto ||
+          0
         ),
       0
     );
@@ -3065,11 +4301,17 @@ function getFixedProgress(
   return {
 
     pagos,
+
     pagado,
+
     objetivo,
+
     pendiente,
+
     pct,
+
     venc,
+
     estado
 
   };
@@ -3087,7 +4329,9 @@ function estadoFechaPago(
     );
 
   const v =
-    new Date(venc);
+    new Date(
+      venc
+    );
 
 
   const diff =
@@ -3101,12 +4345,15 @@ function estadoFechaPago(
 
 
   if (
-    Math.abs(diff) <=
+    Math.abs(
+      diff
+    ) <=
     10
   ) {
 
     if (
-      diff < 0
+      diff <
+      0
     ) {
 
       return `Pagado ${Math.abs(diff)} día${Math.abs(diff) !== 1 ? "s" : ""} antes`;
@@ -3114,7 +4361,8 @@ function estadoFechaPago(
 
 
     if (
-      diff === 0
+      diff ===
+      0
     ) {
 
       return "Pagado a tiempo";
@@ -3189,7 +4437,9 @@ function obtenerTextoEstadoFijo(
     "parcial-atrasado":
       "⚠ Parcial atrasado"
 
-  }[estado] ||
+  }[
+    estado
+  ] ||
   "Pendiente";
 }
 
@@ -3198,6 +4448,7 @@ function renderGastosFijos() {
 
   const box =
     $("listaGastosFijos");
+
 
   if (!box) return;
 
@@ -3210,7 +4461,9 @@ function renderGastosFijos() {
     );
 
 
-  if (!activos.length) {
+  if (
+    !activos.length
+  ) {
 
     box.innerHTML = `
 
@@ -3236,7 +4489,9 @@ function renderGastosFijos() {
         g => {
 
           const p =
-            getFixedProgress(g);
+            getFixedProgress(
+              g
+            );
 
 
           const pagosInfo =
@@ -3245,7 +4500,10 @@ function renderGastosFijos() {
               ? p.pagos
                   .slice()
                   .sort(
-                    (a, b) =>
+                    (
+                      a,
+                      b
+                    ) =>
                       parseFechaLocal(
                         b.fecha
                       ) -
@@ -3319,7 +4577,9 @@ function renderGastosFijos() {
                 <small>
                   Vence día ${g.dia}
                   ·
-                  ${money(g.monto)}
+                  ${money(
+                    g.monto
+                  )}
                 </small>
 
                 <div class="barra">
@@ -3531,10 +4791,12 @@ function actualizarSelects() {
               ${escapeHtml(
                 g.nombre
               )}
+
               —
               ${money(
                 g.monto
               )}
+
             </option>
 
           `
@@ -3553,6 +4815,7 @@ function renderMovimientosRecientes() {
   const recientes =
     $("movimientosRecientes");
 
+
   if (!recientes) return;
 
 
@@ -3560,7 +4823,10 @@ function renderMovimientosRecientes() {
     movimientos
       .slice()
       .sort(
-        (a, b) =>
+        (
+          a,
+          b
+        ) =>
           parseFechaLocal(
             b.fecha
           ) -
@@ -3700,12 +4966,14 @@ function renderHistorial(
               m.fecha
             );
 
+
           const diff =
             (
               now -
               d
             ) /
             86400000;
+
 
           return (
             diff >=
@@ -3731,6 +4999,7 @@ function renderHistorial(
             parseFechaLocal(
               m.fecha
             );
+
 
           return (
             d.getMonth() ===
@@ -3786,7 +5055,10 @@ function renderHistorial(
 
 
   arr.sort(
-    (a, b) =>
+    (
+      a,
+      b
+    ) =>
       parseFechaLocal(
         b.fecha
       ) -
@@ -3812,6 +5084,7 @@ function renderHistorial(
 
   const box =
     $("historialMovimientos");
+
 
   if (!box) return;
 
@@ -4052,6 +5325,7 @@ function mostrar(
   const el =
     $(id);
 
+
   if (!el) return;
 
 
@@ -4139,6 +5413,7 @@ function activarTarjeta(
 
   const el =
     $(id);
+
 
   if (!el) return;
 
@@ -4270,7 +5545,8 @@ $("formIngreso")
 
     if (
       !tipo ||
-      monto <= 0
+      monto <=
+      0
     ) {
 
       return alert(
@@ -4325,6 +5601,7 @@ $("formIngreso")
             movimiento.id
         );
 
+
       guardarMovimientosLocal();
 
       return;
@@ -4362,15 +5639,18 @@ $("tipoSalida")
 
 
     const normal =
-      v === "gasto";
+      v ===
+      "gasto";
 
 
     const ahorro =
-      v === "ahorro";
+      v ===
+      "ahorro";
 
 
     const retiro =
-      v === "retiro_ahorro";
+      v ===
+      "retiro_ahorro";
 
 
     $("camposGasto")
@@ -4428,6 +5708,7 @@ $("tipoSalida")
         .value =
         "";
 
+
       $("gastoFijoSeleccion")
         .value =
         "";
@@ -4461,7 +5742,8 @@ $("formGasto")
 
 
     if (
-      monto <= 0
+      monto <=
+      0
     ) {
 
       return alert(
@@ -4677,6 +5959,7 @@ $("formGasto")
             movimiento.id
         );
 
+
       guardarMovimientosLocal();
 
       return;
@@ -4734,12 +6017,15 @@ window.eliminarMovimiento =
 
     if (!ok) {
 
-      if (anterior) {
+      if (
+        anterior
+      ) {
 
         movimientos.push(
           anterior
         );
       }
+
 
       guardarMovimientosLocal();
 
@@ -4762,6 +6048,7 @@ window.editarMovimiento =
           x.id ===
           id
       );
+
 
     if (!m) return;
 
@@ -4867,6 +6154,7 @@ $("cerrarEdicion")
     $("formularioEdicion")
       .style.display =
       "none";
+
 
     $("formEdicion")
       .reset();
@@ -4998,10 +6286,16 @@ $("formEdicion")
 
     m.categoria =
       (
-        nuevoTipo === "gasto"
+        nuevoTipo ===
+          "gasto"
+
           ? nuevaCategoria
-          : nuevoTipo === "ahorro"
+
+          : nuevoTipo ===
+              "ahorro"
+
             ? "ahorro"
+
             : "retiro_ahorro"
       );
 
@@ -5044,6 +6338,7 @@ $("formEdicion")
         m,
         copia
       );
+
 
       guardarMovimientosLocal();
 
@@ -5117,6 +6412,7 @@ window.editarFijo =
           x.id ===
           id
       );
+
 
     if (!g) return;
 
@@ -5194,9 +6490,12 @@ $("formGastoFijo")
 
     if (
       !nombre ||
-      monto <= 0 ||
-      dia < 1 ||
-      dia > 31
+      monto <=
+        0 ||
+      dia <
+        1 ||
+      dia >
+        31
     ) {
 
       return alert(
@@ -5271,7 +6570,9 @@ $("formGastoFijo")
     const copiaAnterior =
       indice >= 0
         ? {
-            ...gastosFijos[indice]
+            ...gastosFijos[
+              indice
+            ]
           }
         : null;
 
@@ -5303,11 +6604,14 @@ $("formGastoFijo")
     if (!ok) {
 
       if (
-        indice >= 0 &&
+        indice >=
+          0 &&
         copiaAnterior
       ) {
 
-        gastosFijos[indice] =
+        gastosFijos[
+          indice
+        ] =
           copiaAnterior;
 
       } else {
@@ -5381,6 +6685,7 @@ window.desactivarFijo =
 
       g.activo =
         anterior;
+
 
       guardarFijosLocal();
 
@@ -5509,6 +6814,7 @@ function renderEditorDistribucion() {
   const box =
     $("listaDistribucionEditar");
 
+
   if (!box) return;
 
 
@@ -5527,6 +6833,7 @@ function renderEditorDistribucion() {
           >
 
             <span>
+
               ${escapeHtml(
                 c.icono ||
                 "📦"
@@ -5590,6 +6897,7 @@ window.editarArea =
           x.id ===
           id
       );
+
 
     if (!c) return;
 
@@ -5665,6 +6973,7 @@ window.editarArea =
         anterior
       );
 
+
       guardarDistribucionLocal();
 
       renderEditorDistribucion();
@@ -5685,13 +6994,11 @@ window.eliminarArea =
   async id => {
 
     if (
-      distribucion
-        .filter(
-          x =>
-            x.activo !==
-            false
-        )
-        .length <=
+      distribucion.filter(
+        x =>
+          x.activo !==
+          false
+      ).length <=
       1
     ) {
 
@@ -5738,6 +7045,7 @@ window.eliminarArea =
 
       c.activo =
         anterior;
+
 
       guardarDistribucionLocal();
 
@@ -5849,6 +7157,7 @@ $("formNuevaArea")
             nueva.id
         );
 
+
       guardarDistribucionLocal();
 
       return;
@@ -5896,6 +7205,7 @@ $("guardarLimitesDistribucion")
                 ) || 0,
                 0
               );
+
 
             cambios.push(
               c
@@ -6008,10 +7318,10 @@ $("cerrarHistorial")
 
 
 /* =========================================================
-   EXPORTAR
+   EXPORTAR A EXCEL
    ========================================================= */
 
-function exportar(
+function exportarExcel(
   filtro
 ) {
 
@@ -6054,479 +7364,6 @@ function exportar(
     "mes"
   ) {
 
-    const n =
-      new Date();
-
-
-    arr =
-      arr.filter(
-        m => {
-
-          const d =
-            parseFechaLocal(
-              m.fecha
-            );
-
-
-          return (
-            d.getMonth() ===
-              n.getMonth() &&
-            d.getFullYear() ===
-              n.getFullYear()
-          );
-        }
-      );
-  }
-
-
-  arr.sort(
-    (a, b) =>
-      parseFechaLocal(
-        b.fecha
-      ) -
-      parseFechaLocal(
-        a.fecha
-      )
-  );
-
-
-  const encabezado =
-    [
-      "Fecha",
-      "Tipo",
-      "Categoría",
-      "Monto",
-      "Descripción",
-      "Tipo de gasto"
-    ]
-      .map(
-        x =>
-          `"${x}"`
-      )
-      .join(",");
-
-
-  const filas =
-    arr
-      .map(
-        m =>
-          [
-
-            fechaTexto(
-              m.fecha
-            ),
-
-            m.tipo,
-
-            m.categoria ===
-              "ahorro"
-
-              ? "Ahorro"
-
-              : m.categoria ===
-                  "retiro_ahorro"
-
-                ? "Retiro de ahorro"
-
-                : (
-                    distribucion.find(
-                      c =>
-                        c.id ===
-                        m.categoria
-                    )?.nombre ||
-                    m.categoria
-                  ),
-
-            Number(
-              m.monto ||
-              0
-            ).toFixed(
-              2
-            ),
-
-            m.descripcion,
-
-            m.tipoGasto ||
-            ""
-
-          ]
-            .map(
-              x =>
-                `"${String(
-                  x ??
-                  ""
-                ).replaceAll(
-                  '"',
-                  '""'
-                )}"`
-            )
-            .join(",")
-      )
-      .join("\n");
-
-
-  const blob =
-    new Blob(
-      [
-        "\ufeff" +
-        encabezado +
-        "\n" +
-        filas
-      ],
-      {
-        type:
-          "text/csv;charset=utf-8"
-      }
-    );
-
-
-  const url =
-    URL.createObjectURL(
-      blob
-    );
-
-
-  const a =
-    document.createElement(
-      "a"
-    );
-
-
-  a.href =
-    url;
-
-
-  a.download =
-    `finanzas_${filtro}_${hoyISO()}.csv`;
-
-
-  document.body.appendChild(
-    a
-  );
-
-
-  a.click();
-
-
-  a.remove();
-
-
-  setTimeout(
-    () =>
-      URL.revokeObjectURL(
-        url
-      ),
-    100
-  );
-}
-/* =========================================================
-   CONFIGURACIÓN
-   ========================================================= */
-
-$("botonConfiguracion")
-  .onclick =
-  () =>
-    alert(
-      "Tu cuenta y tus datos financieros están protegidos por Supabase. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos."
-    );
-
-
-/* =========================================================
-   SESIÓN SUPABASE
-   ========================================================= */
-
-async function iniciarAplicacion() {
-
-  try {
-
-    const {
-      data,
-      error
-    } =
-    await supabaseClient
-      .auth
-      .getSession();
-
-
-    if (error) {
-
-      console.error(
-        "Error obteniendo sesión Supabase:",
-        error
-      );
-    }
-
-
-    const session =
-      data?.session;
-
-
-    if (
-      session?.user
-    ) {
-
-      const authUser =
-        session.user;
-
-
-      usuario = {
-
-        id:
-          authUser.id,
-
-        nombre:
-          authUser
-            .user_metadata
-            ?.nombre ||
-          authUser.email ||
-          "Usuario",
-
-        correo:
-          authUser.email ||
-          ""
-
-      };
-
-
-      localStorage.setItem(
-        SESSION_KEY,
-        authUser.id
-      );
-
-
-      await mostrarApp();
-
-      return;
-    }
-
-  } catch (error) {
-
-    console.error(
-      "No se pudo consultar Supabase Auth:",
-      error
-    );
-  }
-
-
-  $("pantallaAuth")
-    .style.display =
-    "flex";
-
-
-  $("app")
-    .style.display =
-    "none";
-}
-
-
-/* =========================================================
-   CAMBIOS DE SESIÓN
-   ========================================================= */
-
-supabaseClient
-  .auth
-  .onAuthStateChange(
-    async (
-      event,
-      session
-    ) => {
-
-      if (
-        event ===
-        "PASSWORD_RECOVERY"
-      ) {
-
-        mostrarNuevaPassword();
-
-        return;
-      }
-
-
-      if (
-        event ===
-        "SIGNED_OUT"
-      ) {
-
-        return;
-      }
-
-
-      if (
-        session?.user &&
-        !usuario
-      ) {
-
-        const authUser =
-          session.user;
-
-
-        usuario = {
-
-          id:
-            authUser.id,
-
-          nombre:
-            authUser
-              .user_metadata
-              ?.nombre ||
-            authUser.email ||
-            "Usuario",
-
-          correo:
-            authUser.email ||
-            ""
-
-        };
-
-
-        localStorage.setItem(
-          SESSION_KEY,
-          authUser.id
-        );
-
-
-        await mostrarApp();
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   INICIO
-   ========================================================= */
-
-$("tipoSalida")
-  .dispatchEvent(
-    new Event(
-      "change"
-    )
-  );
-
-
-if (
-  $("seccionHistorial")
-) {
-
-  $("seccionHistorial")
-    .style.display =
-    "none";
-}
-
-
-establecerFechasHoy();
-
-
-iniciarAplicacion();
-
-
-/* =========================================================
-   SERVICE WORKER
-   ========================================================= */
-
-if (
-  "serviceWorker" in
-  navigator
-) {
-
-  window.addEventListener(
-    "load",
-    async () => {
-
-      try {
-
-        const registrations =
-          await navigator
-            .serviceWorker
-            .getRegistrations();
-
-
-        for (
-          const registration
-          of registrations
-        ) {
-
-          await registration
-            .unregister();
-        }
-
-
-        if (
-          window.caches &&
-          caches.keys
-        ) {
-
-          const keys =
-            await caches.keys();
-
-
-          for (
-            const key
-            of keys
-          ) {
-
-            await caches.delete(
-              key
-            );
-          }
-        }
-
-      } catch {}
-
-    }
-  );
-}
-/* =========================================================
-   EXPORTACIÓN EXCEL - VERSIÓN FINAL
-   ========================================================= */
-
-function exportarExcel(filtro) {
-
-  let arr =
-    movimientos.slice();
-
-
-  /* -------------------------------------------------------
-     FILTRO SEMANA
-     ------------------------------------------------------- */
-
-  if (
-    filtro ===
-    "semana"
-  ) {
-
-    arr =
-      arr.filter(
-        m => {
-
-          const diff =
-            (
-              new Date() -
-              parseFechaLocal(
-                m.fecha
-              )
-            ) /
-            86400000;
-
-
-          return (
-            diff >= 0 &&
-            diff <= 7
-          );
-        }
-      );
-  }
-
-
-  /* -------------------------------------------------------
-     FILTRO MES
-     ------------------------------------------------------- */
-
-  if (
-    filtro ===
-    "mes"
-  ) {
-
     const ahora =
       new Date();
 
@@ -6553,12 +7390,11 @@ function exportarExcel(filtro) {
   }
 
 
-  /* -------------------------------------------------------
-     ORDENAR MÁS RECIENTE → MÁS ANTIGUO
-     ------------------------------------------------------- */
-
   arr.sort(
-    (a, b) =>
+    (
+      a,
+      b
+    ) =>
       parseFechaLocal(
         b.fecha
       ) -
@@ -6568,11 +7404,9 @@ function exportarExcel(filtro) {
   );
 
 
-  /* -------------------------------------------------------
-     FUNCIONES AUXILIARES
-     ------------------------------------------------------- */
-
-  function escaparHtml(valor) {
+  function escaparHtml(
+    valor
+  ) {
 
     return String(
       valor ?? ""
@@ -6640,7 +7474,8 @@ function exportarExcel(filtro) {
     }
 
 
-    return tipo || "";
+    return tipo ||
+      "";
   }
 
 
@@ -6708,10 +7543,6 @@ function exportarExcel(filtro) {
   }
 
 
-  /* -------------------------------------------------------
-     CONSTRUIR FILAS
-     ------------------------------------------------------- */
-
   const filas =
     arr
       .map(
@@ -6737,7 +7568,8 @@ function exportarExcel(filtro) {
 
           const monto =
             Number(
-              m.monto || 0
+              m.monto ||
+              0
             ).toFixed(
               2
             );
@@ -6805,10 +7637,6 @@ function exportarExcel(filtro) {
       .join("");
 
 
-  /* -------------------------------------------------------
-     DOCUMENTO EXCEL
-     ------------------------------------------------------- */
-
   const html = `
 
     <html>
@@ -6871,9 +7699,11 @@ function exportarExcel(filtro) {
         <p>
           Exportación de movimientos ·
           ${escaparHtml(
-            filtro === "semana"
+            filtro ===
+              "semana"
               ? "Últimos 7 días"
-              : filtro === "mes"
+              : filtro ===
+                  "mes"
                 ? "Mes actual"
                 : "Todos los movimientos"
           )}
@@ -6941,10 +7771,6 @@ function exportarExcel(filtro) {
   `;
 
 
-  /* -------------------------------------------------------
-     DESCARGA
-     ------------------------------------------------------- */
-
   const blob =
     new Blob(
       [
@@ -7008,25 +7834,470 @@ function exportarExcel(filtro) {
    BOTONES DE EXPORTACIÓN
    ========================================================= */
 
-$("exportarSemana")
+if (
+  $("exportarSemana")
+) {
+
+  $("exportarSemana")
+    .onclick =
+    () =>
+      exportarExcel(
+        "semana"
+      );
+}
+
+
+if (
+  $("exportarMes")
+) {
+
+  $("exportarMes")
+    .onclick =
+    () =>
+      exportarExcel(
+        "mes"
+      );
+}
+
+
+if (
+  $("exportarTodo")
+) {
+
+  $("exportarTodo")
+    .onclick =
+    () =>
+      exportarExcel(
+        "todo"
+      );
+}
+
+
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
+
+$("botonConfiguracion")
   .onclick =
   () =>
-    exportarExcel(
-      "semana"
+    alert(
+      "Tu cuenta y tus datos financieros están protegidos por Supabase. Las personalizaciones financieras se realizan desde Distribución y Gastos Fijos."
     );
 
 
-$("exportarMes")
-  .onclick =
-  () =>
-    exportarExcel(
-      "mes"
-    );
+/* =========================================================
+   INICIO / RESTAURACIÓN DE SESIÓN
+   ========================================================= */
+
+function establecerUsuarioDesdeAuth(
+  authUser
+) {
+
+  if (!authUser) {
+
+    return null;
+  }
 
 
-$("exportarTodo")
-  .onclick =
-  () =>
-    exportarExcel(
-      "todo"
+  return {
+
+    id:
+      authUser.id,
+
+    nombre:
+      authUser
+        .user_metadata
+        ?.nombre ||
+      authUser.email ||
+      "Usuario",
+
+    correo:
+      authUser.email ||
+      ""
+
+  };
+}
+
+
+let iniciandoAplicacion =
+  false;
+
+
+async function iniciarAplicacion() {
+
+  if (
+    iniciandoAplicacion
+  ) {
+
+    return;
+  }
+
+
+  iniciandoAplicacion =
+    true;
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+    await supabaseClient
+      .auth
+      .getSession();
+
+
+    if (error) {
+
+      console.error(
+        "Error obteniendo sesión Supabase:",
+        error
+      );
+    }
+
+
+    const session =
+      data?.session;
+
+
+    if (
+      session?.user
+    ) {
+
+      usuario =
+        establecerUsuarioDesdeAuth(
+          session.user
+        );
+
+
+      localStorage.setItem(
+        SESSION_KEY,
+        session.user.id
+      );
+
+
+      await mostrarApp();
+
+      return;
+    }
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "No se pudo consultar Supabase Auth:",
+      error
     );
+
+    /*
+     * Aunque haya un error de red,
+     * no borramos la sesión local de Supabase.
+     */
+  } finally {
+
+    iniciandoAplicacion =
+      false;
+  }
+
+
+  usuario =
+    null;
+
+
+  $("pantallaAuth")
+    .style.display =
+    "flex";
+
+
+  $("app")
+    .style.display =
+    "none";
+}
+
+
+/* =========================================================
+   CAMBIOS DE SESIÓN
+   ========================================================= */
+
+supabaseClient
+  .auth
+  .onAuthStateChange(
+    (
+      event,
+      session
+    ) => {
+
+      if (
+        event ===
+        "PASSWORD_RECOVERY"
+      ) {
+
+        setTimeout(
+          () => {
+
+            mostrarNuevaPassword();
+
+          },
+          0
+        );
+
+
+        return;
+      }
+
+
+      if (
+        event ===
+        "SIGNED_OUT"
+      ) {
+
+        return;
+      }
+
+
+      if (
+        event ===
+        "SIGNED_IN" &&
+        session?.user &&
+        !usuario
+      ) {
+
+        setTimeout(
+          async () => {
+
+            usuario =
+              establecerUsuarioDesdeAuth(
+                session.user
+              );
+
+
+            localStorage.setItem(
+              SESSION_KEY,
+              session.user.id
+            );
+
+
+            await mostrarApp();
+
+          },
+          0
+        );
+      }
+
+
+      if (
+        event ===
+          "USER_UPDATED" &&
+        session?.user &&
+        usuario
+      ) {
+
+        usuario =
+          establecerUsuarioDesdeAuth(
+            session.user
+          );
+
+
+        localStorage.setItem(
+          SESSION_KEY,
+          session.user.id
+        );
+
+
+        const usuarioActual =
+          $("usuarioActual");
+
+
+        if (
+          usuarioActual
+        ) {
+
+          usuarioActual
+            .textContent =
+            `Cuenta: ${usuario.nombre} · ${usuario.correo}`;
+        }
+      }
+    }
+  );
+
+
+/* =========================================================
+   VUELVE INTERNET
+   ========================================================= */
+
+window.addEventListener(
+  "online",
+  async () => {
+
+    if (!usuario) {
+
+      return;
+    }
+
+
+    if (
+      sincronizando
+    ) {
+
+      return;
+    }
+
+
+    sincronizando =
+      true;
+
+
+    try {
+
+      const todoBien =
+        await sincronizarPendientesMovimientos();
+
+
+      if (
+        todoBien
+      ) {
+
+        await cargarDatosSupabase();
+
+        construirCategorias();
+
+        actualizarSelects();
+
+        render();
+
+        mostrarAvisoOffline(
+          "Conexión restaurada. Tus datos fueron sincronizados."
+        );
+
+      } else {
+
+        render();
+
+        mostrarAvisoOffline(
+          "La conexión volvió, pero algunos datos siguen pendientes de sincronización."
+        );
+      }
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "Error sincronizando al volver internet:",
+        error
+      );
+
+    } finally {
+
+      sincronizando =
+        false;
+    }
+  }
+);
+
+
+/* =========================================================
+   SE VA INTERNET
+   ========================================================= */
+
+window.addEventListener(
+  "offline",
+  () => {
+
+    mostrarAvisoOffline(
+      "Sin conexión. Los datos nuevos se guardarán en este dispositivo."
+    );
+  }
+);
+
+
+/* =========================================================
+   INICIO
+   ========================================================= */
+
+$("tipoSalida")
+  .dispatchEvent(
+    new Event(
+      "change"
+    )
+  );
+
+
+if (
+  $("seccionHistorial")
+) {
+
+  $("seccionHistorial")
+    .style.display =
+    "none";
+}
+
+
+establecerFechasHoy();
+
+
+/*
+ * Arrancar la aplicación.
+ * Supabase conservará la sesión en localStorage.
+ */
+
+iniciarAplicacion();
+
+
+/* =========================================================
+   SERVICE WORKER
+   ========================================================= */
+
+if (
+  "serviceWorker" in
+  navigator
+) {
+
+  window.addEventListener(
+    "load",
+    async () => {
+
+      try {
+
+        const registrations =
+          await navigator
+            .serviceWorker
+            .getRegistrations();
+
+
+        for (
+          const registration
+          of registrations
+        ) {
+
+          await registration
+            .unregister();
+        }
+
+
+        if (
+          window.caches &&
+          caches.keys
+        ) {
+
+          const keys =
+            await caches.keys();
+
+
+          for (
+            const key
+            of keys
+          ) {
+
+            await caches.delete(
+              key
+            );
+          }
+        }
+
+      } catch {}
+    }
+  );
+}
