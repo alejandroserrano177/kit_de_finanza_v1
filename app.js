@@ -6001,154 +6001,213 @@ $("cerrarHistorial")
    EXPORTAR
    ========================================================= */
 
-function exportar(filtro) {
+function exportar(
+  filtro
+) {
 
   let arr =
     movimientos.slice();
 
-  if (filtro === "semana") {
 
-    arr = arr.filter(m => {
+  if (
+    filtro ===
+    "semana"
+  ) {
 
-      const diff =
-        (
-          new Date() -
-          parseFechaLocal(m.fecha)
-        ) / 86400000;
+    arr =
+      arr.filter(
+        m => {
 
-      return (
-        diff >= 0 &&
-        diff <= 7
+          const diff =
+            (
+              new Date() -
+              parseFechaLocal(
+                m.fecha
+              )
+            ) /
+            86400000;
+
+
+          return (
+            diff >=
+              0 &&
+            diff <=
+              7
+          );
+        }
       );
-    });
   }
 
-  if (filtro === "mes") {
 
-    const n = new Date();
+  if (
+    filtro ===
+    "mes"
+  ) {
 
-    arr = arr.filter(m => {
+    const n =
+      new Date();
 
-      const d =
-        parseFechaLocal(m.fecha);
 
-      return (
-        d.getMonth() === n.getMonth() &&
-        d.getFullYear() === n.getFullYear()
+    arr =
+      arr.filter(
+        m => {
+
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+
+          return (
+            d.getMonth() ===
+              n.getMonth() &&
+            d.getFullYear() ===
+              n.getFullYear()
+          );
+        }
       );
-    });
   }
+
 
   arr.sort(
     (a, b) =>
-      parseFechaLocal(b.fecha) -
-      parseFechaLocal(a.fecha)
+      parseFechaLocal(
+        b.fecha
+      ) -
+      parseFechaLocal(
+        a.fecha
+      )
   );
 
-  const separador = ";";
 
-  const escapar = valor =>
-    `"${String(
-      valor ?? ""
-    ).replaceAll(
-      '"',
-      '""'
-    )}"`;
+  const encabezado =
+    [
+      "Fecha",
+      "Tipo",
+      "Categoría",
+      "Monto",
+      "Descripción",
+      "Tipo de gasto"
+    ]
+      .map(
+        x =>
+          `"${x}"`
+      )
+      .join(",");
 
-  const encabezado = [
-    "Fecha",
-    "Tipo",
-    "Categoría",
-    "Monto",
-    "Descripción",
-    "Tipo de gasto"
-  ]
-    .map(escapar)
-    .join(separador);
 
-  const filas = arr
-    .map(m => {
+  const filas =
+    arr
+      .map(
+        m =>
+          [
 
-      const tipo =
-        m.tipo === "ingreso"
-          ? "Ingreso"
-          : m.tipo === "gasto"
-            ? "Gasto"
-            : m.tipo === "ahorro"
-              ? "Aporte a ahorro"
-              : m.tipo === "retiro_ahorro"
+            fechaTexto(
+              m.fecha
+            ),
+
+            m.tipo,
+
+            m.categoria ===
+              "ahorro"
+
+              ? "Ahorro"
+
+              : m.categoria ===
+                  "retiro_ahorro"
+
                 ? "Retiro de ahorro"
-                : m.tipo;
 
-      const categoria =
-        m.categoria === "ahorro"
-          ? "Ahorro"
-          : m.categoria === "retiro_ahorro"
-            ? "Retiro de ahorro"
-            : (
-                distribucion.find(
-                  c =>
-                    c.id === m.categoria
-                )?.nombre ||
-                m.categoria ||
-                ""
-              );
+                : (
+                    distribucion.find(
+                      c =>
+                        c.id ===
+                        m.categoria
+                    )?.nombre ||
+                    m.categoria
+                  ),
 
-      const tipoGasto =
-        m.tipoGasto === "fijo"
-          ? "Fijo"
-          : m.tipoGasto === "variable"
-            ? "Variable"
-            : "";
+            Number(
+              m.monto ||
+              0
+            ).toFixed(
+              2
+            ),
 
-      return [
-        fechaTexto(m.fecha),
-        tipo,
-        categoria,
-        Number(m.monto || 0).toFixed(2),
-        m.descripcion || "",
-        tipoGasto
-      ]
-        .map(escapar)
-        .join(separador);
+            m.descripcion,
 
-    })
-    .join("\n");
+            m.tipoGasto ||
+            ""
 
-  const csv =
-    "\ufeff" +
-    encabezado +
-    "\n" +
-    filas;
+          ]
+            .map(
+              x =>
+                `"${String(
+                  x ??
+                  ""
+                ).replaceAll(
+                  '"',
+                  '""'
+                )}"`
+            )
+            .join(",")
+      )
+      .join("\n");
+
 
   const blob =
     new Blob(
-      [csv],
+      [
+        "\ufeff" +
+        encabezado +
+        "\n" +
+        filas
+      ],
       {
-        type: "text/csv;charset=utf-8"
+        type:
+          "text/csv;charset=utf-8"
       }
     );
 
+
   const url =
-    URL.createObjectURL(blob);
+    URL.createObjectURL(
+      blob
+    );
+
 
   const a =
-    document.createElement("a");
+    document.createElement(
+      "a"
+    );
 
-  a.href = url;
+
+  a.href =
+    url;
+
 
   a.download =
     `finanzas_${filtro}_${hoyISO()}.csv`;
 
-  document.body.appendChild(a);
+
+  document.body.appendChild(
+    a
+  );
+
 
   a.click();
 
-  document.body.removeChild(a);
 
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
+  a.remove();
+
+
+  setTimeout(
+    () =>
+      URL.revokeObjectURL(
+        url
+      ),
+    100
+  );
 }
 /* =========================================================
    CONFIGURACIÓN
