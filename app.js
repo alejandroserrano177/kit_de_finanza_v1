@@ -6466,3 +6466,557 @@ if (
     }
   );
 }
+/* =========================================================
+   EXPORTACIÓN EXCEL - VERSIÓN FINAL
+   ========================================================= */
+
+function exportarExcel(filtro) {
+
+  let arr =
+    movimientos.slice();
+
+
+  /* -------------------------------------------------------
+     FILTRO SEMANA
+     ------------------------------------------------------- */
+
+  if (
+    filtro ===
+    "semana"
+  ) {
+
+    arr =
+      arr.filter(
+        m => {
+
+          const diff =
+            (
+              new Date() -
+              parseFechaLocal(
+                m.fecha
+              )
+            ) /
+            86400000;
+
+
+          return (
+            diff >= 0 &&
+            diff <= 7
+          );
+        }
+      );
+  }
+
+
+  /* -------------------------------------------------------
+     FILTRO MES
+     ------------------------------------------------------- */
+
+  if (
+    filtro ===
+    "mes"
+  ) {
+
+    const ahora =
+      new Date();
+
+
+    arr =
+      arr.filter(
+        m => {
+
+          const d =
+            parseFechaLocal(
+              m.fecha
+            );
+
+
+          return (
+            d.getMonth() ===
+              ahora.getMonth() &&
+
+            d.getFullYear() ===
+              ahora.getFullYear()
+          );
+        }
+      );
+  }
+
+
+  /* -------------------------------------------------------
+     ORDENAR MÁS RECIENTE → MÁS ANTIGUO
+     ------------------------------------------------------- */
+
+  arr.sort(
+    (a, b) =>
+      parseFechaLocal(
+        b.fecha
+      ) -
+      parseFechaLocal(
+        a.fecha
+      )
+  );
+
+
+  /* -------------------------------------------------------
+     FUNCIONES AUXILIARES
+     ------------------------------------------------------- */
+
+  function escaparHtml(valor) {
+
+    return String(
+      valor ?? ""
+    )
+      .replaceAll(
+        "&",
+        "&amp;"
+      )
+      .replaceAll(
+        "<",
+        "&lt;"
+      )
+      .replaceAll(
+        ">",
+        "&gt;"
+      )
+      .replaceAll(
+        '"',
+        "&quot;"
+      )
+      .replaceAll(
+        "'",
+        "&#039;"
+      );
+  }
+
+
+  function tipoTexto(
+    tipo
+  ) {
+
+    if (
+      tipo ===
+      "ingreso"
+    ) {
+
+      return "Ingreso";
+    }
+
+
+    if (
+      tipo ===
+      "gasto"
+    ) {
+
+      return "Gasto";
+    }
+
+
+    if (
+      tipo ===
+      "ahorro"
+    ) {
+
+      return "Aporte a ahorro";
+    }
+
+
+    if (
+      tipo ===
+      "retiro_ahorro"
+    ) {
+
+      return "Retiro de ahorro";
+    }
+
+
+    return tipo || "";
+  }
+
+
+  function categoriaTexto(
+    m
+  ) {
+
+    if (
+      m.tipo ===
+      "ahorro"
+    ) {
+
+      return "Ahorro";
+    }
+
+
+    if (
+      m.tipo ===
+      "retiro_ahorro"
+    ) {
+
+      return "Retiro de ahorro";
+    }
+
+
+    const categoria =
+      distribucion.find(
+        c =>
+          c.id ===
+          m.categoria
+      );
+
+
+    return (
+      categoria?.nombre ||
+      m.categoria ||
+      ""
+    );
+  }
+
+
+  function tipoGastoTexto(
+    m
+  ) {
+
+    if (
+      m.tipoGasto ===
+      "fijo"
+    ) {
+
+      return "Fijo";
+    }
+
+
+    if (
+      m.tipoGasto ===
+      "variable"
+    ) {
+
+      return "Variable";
+    }
+
+
+    return "";
+  }
+
+
+  /* -------------------------------------------------------
+     CONSTRUIR FILAS
+     ------------------------------------------------------- */
+
+  const filas =
+    arr
+      .map(
+        m => {
+
+          const fecha =
+            fechaTexto(
+              m.fecha
+            );
+
+
+          const tipo =
+            tipoTexto(
+              m.tipo
+            );
+
+
+          const categoria =
+            categoriaTexto(
+              m
+            );
+
+
+          const monto =
+            Number(
+              m.monto || 0
+            ).toFixed(
+              2
+            );
+
+
+          const descripcion =
+            m.descripcion ||
+            "";
+
+
+          const tipoGasto =
+            tipoGastoTexto(
+              m
+            );
+
+
+          return `
+
+            <tr>
+
+              <td>
+                ${escaparHtml(
+                  fecha
+                )}
+              </td>
+
+              <td>
+                ${escaparHtml(
+                  tipo
+                )}
+              </td>
+
+              <td>
+                ${escaparHtml(
+                  categoria
+                )}
+              </td>
+
+              <td
+                style="
+                  text-align:right;
+                  mso-number-format:'0.00';
+                "
+              >
+                ${monto}
+              </td>
+
+              <td>
+                ${escaparHtml(
+                  descripcion
+                )}
+              </td>
+
+              <td>
+                ${escaparHtml(
+                  tipoGasto
+                )}
+              </td>
+
+            </tr>
+
+          `;
+        }
+      )
+      .join("");
+
+
+  /* -------------------------------------------------------
+     DOCUMENTO EXCEL
+     ------------------------------------------------------- */
+
+  const html = `
+
+    <html>
+
+      <head>
+
+        <meta charset="UTF-8">
+
+        <style>
+
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+          }
+
+          h1 {
+            font-size: 22px;
+            margin-bottom: 6px;
+          }
+
+          p {
+            font-size: 12px;
+            color: #555;
+            margin-top: 0;
+          }
+
+          table {
+            border-collapse: collapse;
+            width: 100%;
+          }
+
+          th {
+            background: #1f2937;
+            color: white;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            text-align: left;
+          }
+
+          td {
+            padding: 7px;
+            border: 1px solid #d1d5db;
+          }
+
+          tr:nth-child(even) td {
+            background: #f3f4f6;
+          }
+
+        </style>
+
+      </head>
+
+
+      <body>
+
+        <h1>
+          Kit de Finanzas
+        </h1>
+
+        <p>
+          Exportación de movimientos ·
+          ${escaparHtml(
+            filtro === "semana"
+              ? "Últimos 7 días"
+              : filtro === "mes"
+                ? "Mes actual"
+                : "Todos los movimientos"
+          )}
+        </p>
+
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>
+                Fecha
+              </th>
+
+              <th>
+                Tipo
+              </th>
+
+              <th>
+                Categoría
+              </th>
+
+              <th>
+                Monto
+              </th>
+
+              <th>
+                Descripción
+              </th>
+
+              <th>
+                Tipo de gasto
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            ${
+              filas ||
+              `
+                <tr>
+
+                  <td colspan="6">
+                    No hay movimientos para exportar.
+                  </td>
+
+                </tr>
+              `
+            }
+
+          </tbody>
+
+        </table>
+
+      </body>
+
+    </html>
+
+  `;
+
+
+  /* -------------------------------------------------------
+     DESCARGA
+     ------------------------------------------------------- */
+
+  const blob =
+    new Blob(
+      [
+        "\ufeff",
+        html
+      ],
+      {
+        type:
+          "application/vnd.ms-excel"
+      }
+    );
+
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+
+  const enlace =
+    document.createElement(
+      "a"
+    );
+
+
+  enlace.href =
+    url;
+
+
+  enlace.download =
+    `finanzas_${filtro}_${hoyISO()}.xls`;
+
+
+  document.body.appendChild(
+    enlace
+  );
+
+
+  enlace.click();
+
+
+  document.body.removeChild(
+    enlace
+  );
+
+
+  setTimeout(
+    () => {
+
+      URL.revokeObjectURL(
+        url
+      );
+
+    },
+    1000
+  );
+}
+
+
+/* =========================================================
+   BOTONES DE EXPORTACIÓN
+   ========================================================= */
+
+$("exportarSemana")
+  .onclick =
+  () =>
+    exportarExcel(
+      "semana"
+    );
+
+
+$("exportarMes")
+  .onclick =
+  () =>
+    exportarExcel(
+      "mes"
+    );
+
+
+$("exportarTodo")
+  .onclick =
+  () =>
+    exportarExcel(
+      "todo"
+    );
