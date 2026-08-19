@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v15";
+const CACHE_NAME = "kit-finanzas-v16";
 
 const APP_ASSETS = [
   "./",
@@ -10,6 +10,23 @@ const APP_ASSETS = [
 ];
 
 const SUPABASE_SCRIPT = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+
+const APP_GUARD = `
+(() => {
+  try {
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistrations = async () => [];
+    }
+
+    if (window.caches) {
+      window.caches.keys = async () => [];
+      window.caches.delete = async () => true;
+    }
+  } catch (error) {
+    console.warn("No se pudo aplicar el guard de caché:", error);
+  }
+})();
+`;
 
 const OFFLINE_SUPABASE_FALLBACK = `
 (() => {
@@ -43,6 +60,7 @@ const OFFLINE_SUPABASE_FALLBACK = `
 
   function getSession() {
     const user = getStoredUser();
+
     return {
       data: {
         session: user
@@ -70,6 +88,7 @@ const OFFLINE_SUPABASE_FALLBACK = `
           listeners.add(callback);
 
           const session = getSession().data.session;
+
           queueMicrotask(() => {
             if (session) callback("SIGNED_IN", session);
           });
@@ -172,6 +191,31 @@ const OFFLINE_SUPABASE_FALLBACK = `
 })();
 `;
 
+async function prepararRespuesta(request, response) {
+  if (!response) return response;
+
+  try {
+    const pathname = new URL(request.url).pathname;
+
+    if (pathname.endsWith("/app.js")) {
+      const codigo = await response.text();
+
+      return new Response(
+        APP_GUARD + "\n" + codigo,
+        {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers
+        }
+      );
+    }
+  } catch (error) {
+    console.warn("No se pudo proteger app.js:", error);
+  }
+
+  return response;
+}
+
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
@@ -179,7 +223,14 @@ self.addEventListener("install", event => {
     for (const asset of APP_ASSETS) {
       try {
         const response = await fetch(asset, { cache: "no-store" });
-        if (response.ok) await cache.put(asset, response.clone());
+        if (response.ok) {
+          const preparado = await prepararRespuesta(
+            new Request(asset),
+            response.clone()
+          );
+
+          await cache.put(asset, preparado.clone());
+        }
       } catch (error) {
         console.warn("No se pudo precachear:", asset, error);
       }
@@ -187,8 +238,12 @@ self.addEventListener("install", event => {
 
     try {
       const response = await fetch(SUPABASE_SCRIPT, { cache: "no-store" });
+
       if (response.ok || response.type === "opaque") {
-        await cache.put(SUPABASE_SCRIPT, response.clone());
+        await cache.put(
+          SUPABASE_SCRIPT,
+          response.clone()
+        );
       }
     } catch (error) {
       console.warn("No se pudo precachear Supabase:", error);
@@ -197,7 +252,9 @@ self.addEventListener("install", event => {
     await cache.put(
       "offline-supabase-fallback.js",
       new Response(OFFLINE_SUPABASE_FALLBACK, {
-        headers: { "Content-Type": "application/javascript" }
+        headers: {
+          "Content-Type": "application/javascript"
+        }
       })
     );
 
@@ -208,11 +265,13 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
+
     await Promise.all(
       keys
         .filter(key => key !== CACHE_NAME)
         .map(key => caches.delete(key))
     );
+
     await self.clients.claim();
   })());
 });
@@ -222,39 +281,96 @@ self.addEventListener("fetch", event => {
 
   event.respondWith((async () => {
     try {
-      const response = await fetch(event.request, { cache: "no-store" });
+      const response = await fetch(
+        event.request,
+        { cache: "no-store" }
+      );
 
-      if (response.ok || response.type === "opaque") {
+      const preparado =
+        await prepararRespuesta(
+          event.request,
+          response
+        );
+
+      if (
+        preparado &&
+        (
+          preparado.ok ||
+          preparado.type === "opaque"
+        )
+      ) {
         try {
-          const cache = await caches.open(CACHE_NAME);
-          await cache.put(event.request, response.clone());
+          const cache =
+            await caches.open(
+              CACHE_NAME
+            );
+
+          await cache.put(
+            event.request,
+            preparado.clone()
+          );
         } catch (error) {
-          console.warn("No se pudo actualizar caché:", error);
+          console.warn(
+            "No se pudo actualizar caché:",
+            error
+          );
         }
       }
 
-      return response;
+      return preparado;
+
     } catch (error) {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(event.request);
 
-      if (cached) return cached;
+      const cache =
+        await caches.open(
+          CACHE_NAME
+        );
 
-      if (event.request.url === SUPABASE_SCRIPT) {
-        return new Response(OFFLINE_SUPABASE_FALLBACK, {
-          headers: { "Content-Type": "application/javascript" }
-        });
+      const cached =
+        await cache.match(
+          event.request
+        );
+
+      if (cached) {
+        return cached;
       }
 
-      if (event.request.mode === "navigate") {
-        const index = await cache.match("./index.html");
-        if (index) return index;
+      if (
+        event.request.url ===
+        SUPABASE_SCRIPT
+      ) {
+        return new Response(
+          OFFLINE_SUPABASE_FALLBACK,
+          {
+            headers: {
+              "Content-Type":
+                "application/javascript"
+            }
+          }
+        );
       }
 
-      return new Response("Sin conexión", {
-        status: 503,
-        statusText: "Offline"
-      });
+      if (
+        event.request.mode ===
+        "navigate"
+      ) {
+        const index =
+          await cache.match(
+            "./index.html"
+          );
+
+        if (index) {
+          return index;
+        }
+      }
+
+      return new Response(
+        "Sin conexión",
+        {
+          status: 503,
+          statusText: "Offline"
+        }
+      );
     }
   })());
 });
