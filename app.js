@@ -6080,6 +6080,16 @@ function exportar(
   );
 
 
+  /*
+   * Excel en configuraciones regionales
+   * de español suele interpretar mejor
+   * el punto y coma como separador.
+   */
+
+  const separador =
+    ";";
+
+
   const encabezado =
     [
       "Fecha",
@@ -6093,7 +6103,9 @@ function exportar(
         x =>
           `"${x}"`
       )
-      .join(",");
+      .join(
+        separador
+      );
 
 
   const filas =
@@ -6106,7 +6118,19 @@ function exportar(
               m.fecha
             ),
 
-            m.tipo,
+            m.tipo ===
+              "ingreso"
+              ? "Ingreso"
+              : m.tipo ===
+                  "gasto"
+                ? "Gasto"
+                : m.tipo ===
+                    "ahorro"
+                  ? "Aporte a ahorro"
+                  : m.tipo ===
+                      "retiro_ahorro"
+                    ? "Retiro de ahorro"
+                    : m.tipo,
 
             m.categoria ===
               "ahorro"
@@ -6124,7 +6148,8 @@ function exportar(
                         c.id ===
                         m.categoria
                     )?.nombre ||
-                    m.categoria
+                    m.categoria ||
+                    ""
                   ),
 
             Number(
@@ -6134,10 +6159,20 @@ function exportar(
               2
             ),
 
-            m.descripcion,
+            m.descripcion ||
+            "",
 
-            m.tipoGasto ||
-            ""
+            m.tipoGasto ===
+              "fijo"
+
+              ? "Fijo"
+
+              : m.tipoGasto ===
+                  "variable"
+
+                ? "Variable"
+
+                : ""
 
           ]
             .map(
@@ -6150,22 +6185,30 @@ function exportar(
                   '""'
                 )}"`
             )
-            .join(",")
+            .join(
+              separador
+            )
       )
-      .join("\n");
+      .join(
+        "\n"
+      );
+
+
+  const contenido =
+    "\ufeff" +
+    encabezado +
+    "\n" +
+    filas;
 
 
   const blob =
     new Blob(
       [
-        "\ufeff" +
-        encabezado +
-        "\n" +
-        filas
+        contenido
       ],
       {
         type:
-          "text/csv;charset=utf-8"
+          "text/csv;charset=utf-8;"
       }
     );
 
@@ -6209,31 +6252,6 @@ function exportar(
     100
   );
 }
-
-
-$("exportarSemana")
-  .onclick =
-  () =>
-    exportar(
-      "semana"
-    );
-
-
-$("exportarMes")
-  .onclick =
-  () =>
-    exportar(
-      "mes"
-    );
-
-
-$("exportarTodo")
-  .onclick =
-  () =>
-    exportar(
-      "todo"
-    );
-
 
 /* =========================================================
    CONFIGURACIÓN
