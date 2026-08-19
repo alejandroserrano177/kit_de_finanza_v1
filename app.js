@@ -1798,13 +1798,29 @@ async function mostrarApp() {
 
   establecerFechasHoy();
 
+
+  /*
+   * Mostrar inmediatamente la aplicación
+   * con los datos disponibles localmente.
+   */
+
   render();
+
+
+  /*
+   * Cargar desde localStorage y, si hay
+   * conexión, sincronizar con Supabase.
+   */
 
   await cargarDatos();
 
+
+  /*
+   * Volver a renderizar después de la carga.
+   */
+
   render();
 }
-
 
 /* =========================================================
    CERRAR SESIÓN
