@@ -5,38 +5,105 @@
     return;
   }
 
-  function leerUsuarioLocal() {
+  function normalizarUsuario(parsed) {
+    if (typeof parsed === "string" && parsed) {
+      return {
+        id: parsed,
+        email: "",
+        user_metadata: { nombre: "Usuario" }
+      };
+    }
+
+    if (!parsed || !parsed.id) {
+      return null;
+    }
+
+    return {
+      id: parsed.id,
+      email: parsed.correo || parsed.email || "",
+      user_metadata: {
+        nombre:
+          parsed.nombre ||
+          parsed.user_metadata?.nombre ||
+          parsed.correo ||
+          parsed.email ||
+          "Usuario"
+      }
+    };
+  }
+
+  function detectarUsuarioDesdeDatosLocales() {
     try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
+      const candidatos = new Map();
 
-      const parsed = JSON.parse(raw);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
 
-      if (typeof parsed === "string") {
-        return {
-          id: parsed,
-          email: "",
-          user_metadata: { nombre: "Usuario" }
-        };
+        const match = key.match(/^kf_(.+)_(movimientos|distribucion|fijos)$/);
+        if (!match) continue;
+
+        const userId = match[1];
+        let cantidad = 0;
+
+        try {
+          const valor = JSON.parse(localStorage.getItem(key));
+          cantidad = Array.isArray(valor) ? valor.length : 0;
+        } catch {}
+
+        const actual = candidatos.get(userId) || 0;
+        candidatos.set(userId, actual + cantidad);
       }
 
-      if (!parsed || !parsed.id) return null;
+      let mejorId = null;
+      let mejorPuntaje = -1;
 
-      return {
-        id: parsed.id,
-        email: parsed.correo || parsed.email || "",
+      for (const [userId, puntaje] of candidatos.entries()) {
+        if (puntaje > mejorPuntaje) {
+          mejorId = userId;
+          mejorPuntaje = puntaje;
+        }
+      }
+
+      if (!mejorId) return null;
+
+      const usuario = {
+        id: mejorId,
+        email: "",
         user_metadata: {
-          nombre:
-            parsed.nombre ||
-            parsed.user_metadata?.nombre ||
-            parsed.correo ||
-            parsed.email ||
-            "Usuario"
+          nombre: "Usuario"
         }
       };
+
+      try {
+        localStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({
+            id: mejorId,
+            nombre: "Usuario",
+            correo: ""
+          })
+        );
+      } catch {}
+
+      return usuario;
     } catch {
       return null;
     }
+  }
+
+  function leerUsuarioLocal() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const usuario = normalizarUsuario(parsed);
+        if (usuario) return usuario;
+      }
+    } catch {}
+
+    return detectarUsuarioDesdeDatosLocales();
   }
 
   function sesionLocal() {
