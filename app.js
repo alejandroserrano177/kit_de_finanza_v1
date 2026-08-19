@@ -6001,258 +6001,155 @@ $("cerrarHistorial")
    EXPORTAR
    ========================================================= */
 
-function exportar(
-  filtro
-) {
+function exportar(filtro) {
 
   let arr =
     movimientos.slice();
 
+  if (filtro === "semana") {
 
-  if (
-    filtro ===
-    "semana"
-  ) {
+    arr = arr.filter(m => {
 
-    arr =
-      arr.filter(
-        m => {
+      const diff =
+        (
+          new Date() -
+          parseFechaLocal(m.fecha)
+        ) / 86400000;
 
-          const diff =
-            (
-              new Date() -
-              parseFechaLocal(
-                m.fecha
-              )
-            ) /
-            86400000;
-
-
-          return (
-            diff >=
-              0 &&
-            diff <=
-              7
-          );
-        }
+      return (
+        diff >= 0 &&
+        diff <= 7
       );
+    });
   }
 
+  if (filtro === "mes") {
 
-  if (
-    filtro ===
-    "mes"
-  ) {
+    const n = new Date();
 
-    const n =
-      new Date();
+    arr = arr.filter(m => {
 
+      const d =
+        parseFechaLocal(m.fecha);
 
-    arr =
-      arr.filter(
-        m => {
-
-          const d =
-            parseFechaLocal(
-              m.fecha
-            );
-
-
-          return (
-            d.getMonth() ===
-              n.getMonth() &&
-            d.getFullYear() ===
-              n.getFullYear()
-          );
-        }
+      return (
+        d.getMonth() === n.getMonth() &&
+        d.getFullYear() === n.getFullYear()
       );
+    });
   }
-
 
   arr.sort(
     (a, b) =>
-      parseFechaLocal(
-        b.fecha
-      ) -
-      parseFechaLocal(
-        a.fecha
-      )
+      parseFechaLocal(b.fecha) -
+      parseFechaLocal(a.fecha)
   );
 
+  const separador = ";";
 
-  /*
-   * Excel en configuraciones regionales
-   * de español suele interpretar mejor
-   * el punto y coma como separador.
-   */
+  const escapar = valor =>
+    `"${String(
+      valor ?? ""
+    ).replaceAll(
+      '"',
+      '""'
+    )}"`;
 
-  const separador =
-    ";";
+  const encabezado = [
+    "Fecha",
+    "Tipo",
+    "Categoría",
+    "Monto",
+    "Descripción",
+    "Tipo de gasto"
+  ]
+    .map(escapar)
+    .join(separador);
 
+  const filas = arr
+    .map(m => {
 
-  const encabezado =
-    [
-      "Fecha",
-      "Tipo",
-      "Categoría",
-      "Monto",
-      "Descripción",
-      "Tipo de gasto"
-    ]
-      .map(
-        x =>
-          `"${x}"`
-      )
-      .join(
-        separador
-      );
-
-
-  const filas =
-    arr
-      .map(
-        m =>
-          [
-
-            fechaTexto(
-              m.fecha
-            ),
-
-            m.tipo ===
-              "ingreso"
-              ? "Ingreso"
-              : m.tipo ===
-                  "gasto"
-                ? "Gasto"
-                : m.tipo ===
-                    "ahorro"
-                  ? "Aporte a ahorro"
-                  : m.tipo ===
-                      "retiro_ahorro"
-                    ? "Retiro de ahorro"
-                    : m.tipo,
-
-            m.categoria ===
-              "ahorro"
-
-              ? "Ahorro"
-
-              : m.categoria ===
-                  "retiro_ahorro"
-
+      const tipo =
+        m.tipo === "ingreso"
+          ? "Ingreso"
+          : m.tipo === "gasto"
+            ? "Gasto"
+            : m.tipo === "ahorro"
+              ? "Aporte a ahorro"
+              : m.tipo === "retiro_ahorro"
                 ? "Retiro de ahorro"
+                : m.tipo;
 
-                : (
-                    distribucion.find(
-                      c =>
-                        c.id ===
-                        m.categoria
-                    )?.nombre ||
-                    m.categoria ||
-                    ""
-                  ),
+      const categoria =
+        m.categoria === "ahorro"
+          ? "Ahorro"
+          : m.categoria === "retiro_ahorro"
+            ? "Retiro de ahorro"
+            : (
+                distribucion.find(
+                  c =>
+                    c.id === m.categoria
+                )?.nombre ||
+                m.categoria ||
+                ""
+              );
 
-            Number(
-              m.monto ||
-              0
-            ).toFixed(
-              2
-            ),
+      const tipoGasto =
+        m.tipoGasto === "fijo"
+          ? "Fijo"
+          : m.tipoGasto === "variable"
+            ? "Variable"
+            : "";
 
-            m.descripcion ||
-            "",
+      return [
+        fechaTexto(m.fecha),
+        tipo,
+        categoria,
+        Number(m.monto || 0).toFixed(2),
+        m.descripcion || "",
+        tipoGasto
+      ]
+        .map(escapar)
+        .join(separador);
 
-            m.tipoGasto ===
-              "fijo"
+    })
+    .join("\n");
 
-              ? "Fijo"
-
-              : m.tipoGasto ===
-                  "variable"
-
-                ? "Variable"
-
-                : ""
-
-          ]
-            .map(
-              x =>
-                `"${String(
-                  x ??
-                  ""
-                ).replaceAll(
-                  '"',
-                  '""'
-                )}"`
-            )
-            .join(
-              separador
-            )
-      )
-      .join(
-        "\n"
-      );
-
-
-  const contenido =
+  const csv =
     "\ufeff" +
     encabezado +
     "\n" +
     filas;
 
-
   const blob =
     new Blob(
-      [
-        contenido
-      ],
+      [csv],
       {
-        type:
-          "text/csv;charset=utf-8;"
+        type: "text/csv;charset=utf-8"
       }
     );
 
-
   const url =
-    URL.createObjectURL(
-      blob
-    );
-
+    URL.createObjectURL(blob);
 
   const a =
-    document.createElement(
-      "a"
-    );
+    document.createElement("a");
 
-
-  a.href =
-    url;
-
+  a.href = url;
 
   a.download =
     `finanzas_${filtro}_${hoyISO()}.csv`;
 
-
-  document.body.appendChild(
-    a
-  );
-
+  document.body.appendChild(a);
 
   a.click();
 
+  document.body.removeChild(a);
 
-  a.remove();
-
-
-  setTimeout(
-    () =>
-      URL.revokeObjectURL(
-        url
-      ),
-    100
-  );
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
-
 /* =========================================================
    CONFIGURACIÓN
    ========================================================= */
