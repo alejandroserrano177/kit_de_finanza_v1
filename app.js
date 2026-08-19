@@ -376,12 +376,6 @@ function agregarEliminadoPendiente(
   );
 
 
-  /*
-   * Si se elimina algo que estaba
-   * pendiente de creación/actualización,
-   * la eliminación tiene prioridad.
-   */
-
   const movimientosPendientes =
     leerPendientesMovimientos()
       .filter(
@@ -1390,17 +1384,9 @@ async function sincronizarPendientesMovimientos() {
     leerPendientesEliminados();
 
 
-  const pendientesGuardar =
-    leerPendientesMovimientos();
-
-
   let todoBien =
     true;
 
-
-  /*
-   * Primero eliminar.
-   */
 
   for (
     const id
@@ -1427,9 +1413,7 @@ async function sincronizarPendientesMovimientos() {
         );
 
 
-      if (
-        error
-      ) {
+      if (error) {
 
         console.error(
           "Error sincronizando eliminación:",
@@ -1465,10 +1449,6 @@ async function sincronizarPendientesMovimientos() {
     }
   }
 
-
-  /*
-   * Después guardar/actualizar.
-   */
 
   const pendientesActuales =
     leerPendientesMovimientos();
@@ -1517,9 +1497,7 @@ async function sincronizarPendientesMovimientos() {
         .single();
 
 
-      if (
-        error
-      ) {
+      if (error) {
 
         console.error(
           "Error sincronizando movimiento:",
@@ -1547,9 +1525,7 @@ async function sincronizarPendientesMovimientos() {
         );
 
 
-      if (
-        indice >= 0
-      ) {
+      if (indice >= 0) {
 
         movimientos[indice] =
           convertido;
@@ -1752,11 +1728,6 @@ async function cargarDatosSupabase() {
     }
 
 
-    /*
-     * Mantener pendientes locales
-     * mientras se refresca lo remoto.
-     */
-
     const idsPendientes =
       new Set(
         leerPendientesMovimientos()
@@ -1865,10 +1836,6 @@ async function cargarDatos() {
   if (!usuario) return;
 
 
-  /*
-   * SIEMPRE cargar primero lo local.
-   */
-
   movimientos =
     leerLocal(
       userKey(
@@ -1910,26 +1877,13 @@ async function cargarDatos() {
   construirCategorias();
 
 
-  /*
-   * SIN INTERNET:
-   * no tocar Supabase.
-   */
-
-  if (
-    !estaOnline()
-  ) {
+  if (!estaOnline()) {
 
     actualizarSelects();
 
     return;
   }
 
-
-  /*
-   * CON INTERNET:
-   * primero sincronizar pendientes,
-   * luego actualizar desde Supabase.
-   */
 
   await sincronizarPendientesMovimientos();
 
@@ -1993,20 +1947,10 @@ async function guardarMovimientoSupabase(
   }
 
 
-  /*
-   * Ya está guardado localmente.
-   */
-
   guardarMovimientosLocal();
 
 
-  /*
-   * SIN INTERNET
-   */
-
-  if (
-    !estaOnline()
-  ) {
+  if (!estaOnline()) {
 
     agregarMovimientoPendiente(
       m
@@ -2057,15 +2001,7 @@ async function guardarMovimientoSupabase(
       );
 
 
-      /*
-       * Si la conexión se perdió durante
-       * el envío, dejamos la operación
-       * pendiente.
-       */
-
-      if (
-        !estaOnline()
-      ) {
+      if (!estaOnline()) {
 
         agregarMovimientoPendiente(
           m
@@ -2133,9 +2069,7 @@ async function guardarMovimientoSupabase(
     );
 
 
-    if (
-      !estaOnline()
-    ) {
+    if (!estaOnline()) {
 
       agregarMovimientoPendiente(
         m
@@ -2178,9 +2112,7 @@ async function actualizarMovimientoSupabase(
   guardarMovimientosLocal();
 
 
-  if (
-    !estaOnline()
-  ) {
+  if (!estaOnline()) {
 
     agregarMovimientoPendiente(
       m
@@ -2235,9 +2167,7 @@ async function actualizarMovimientoSupabase(
       );
 
 
-      if (
-        !estaOnline()
-      ) {
+      if (!estaOnline()) {
 
         agregarMovimientoPendiente(
           m
@@ -2305,9 +2235,7 @@ async function actualizarMovimientoSupabase(
     );
 
 
-    if (
-      !estaOnline()
-    ) {
+    if (!estaOnline()) {
 
       agregarMovimientoPendiente(
         m
@@ -2347,13 +2275,7 @@ async function eliminarMovimientoSupabase(
   }
 
 
-  /*
-   * SIN INTERNET
-   */
-
-  if (
-    !estaOnline()
-  ) {
+  if (!estaOnline()) {
 
     agregarEliminadoPendiente(
       id
@@ -2397,14 +2319,11 @@ async function eliminarMovimientoSupabase(
       );
 
 
-      if (
-        !estaOnline()
-      ) {
+      if (!estaOnline()) {
 
         agregarEliminadoPendiente(
           id
         );
-
 
         return true;
       }
@@ -2440,14 +2359,11 @@ async function eliminarMovimientoSupabase(
     );
 
 
-    if (
-      !estaOnline()
-    ) {
+    if (!estaOnline()) {
 
       agregarEliminadoPendiente(
         id
       );
-
 
       return true;
     }
@@ -2933,7 +2849,6 @@ function mensaje(
   el.textContent =
     texto;
 
-
   el.className =
     "auth-mensaje" +
     (
@@ -2952,7 +2867,7 @@ async function mostrarApp() {
 
   $("pantallaAuth")
     .style.display =
-    "none";
+      "none";
 
 
   if (
@@ -2961,13 +2876,13 @@ async function mostrarApp() {
 
     $("formularioNuevaPassword")
       .style.display =
-      "none";
+        "none";
   }
 
 
   $("app")
     .style.display =
-    "block";
+      "block";
 
 
   $("usuarioActual")
@@ -2980,20 +2895,9 @@ async function mostrarApp() {
   establecerFechasHoy();
 
 
-  /*
-   * Mostrar inmediatamente los datos
-   * locales disponibles.
-   */
-
   render();
 
-
-  /*
-   * Después cargar/sincronizar.
-   */
-
   await cargarDatos();
-
 
   render();
 }
@@ -3226,22 +3130,15 @@ $("formRegistro")
     await supabaseClient
       .auth
       .signUp({
-
         email:
           correo,
-
         password:
           p1,
-
         options: {
-
           data: {
-
             nombre
           }
-
         }
-
       });
 
 
@@ -3252,7 +3149,6 @@ $("formRegistro")
         error
       );
 
-
       return mensaje(
         "registroMensaje",
         error.message ||
@@ -3262,9 +3158,7 @@ $("formRegistro")
     }
 
 
-    if (
-      !data?.user
-    ) {
+    if (!data?.user) {
 
       return mensaje(
         "registroMensaje",
@@ -3274,9 +3168,7 @@ $("formRegistro")
     }
 
 
-    if (
-      !data.session
-    ) {
+    if (!data.session) {
 
       return mensaje(
         "registroMensaje",
@@ -3286,26 +3178,22 @@ $("formRegistro")
 
 
     usuario = {
-
       id:
         data.user.id,
-
       nombre:
         data.user
           .user_metadata
           ?.nombre ||
         nombre,
-
       correo:
         data.user.email ||
         correo
-
     };
 
 
-    localStorage.setItem(
+    escribirLocal(
       SESSION_KEY,
-      data.user.id
+      usuario
     );
 
 
@@ -3348,12 +3236,9 @@ $("formLogin")
     await supabaseClient
       .auth
       .signInWithPassword({
-
         email:
           correo,
-
         password
-
       });
 
 
@@ -3363,7 +3248,6 @@ $("formLogin")
         "Error Supabase login:",
         error
       );
-
 
       if (
         error.code ===
@@ -3377,7 +3261,6 @@ $("formLogin")
         );
       }
 
-
       return mensaje(
         "loginMensaje",
         error.message ||
@@ -3387,9 +3270,7 @@ $("formLogin")
     }
 
 
-    if (
-      !data?.user
-    ) {
+    if (!data?.user) {
 
       return mensaje(
         "loginMensaje",
@@ -3400,27 +3281,23 @@ $("formLogin")
 
 
     usuario = {
-
       id:
         data.user.id,
-
       nombre:
         data.user
           .user_metadata
           ?.nombre ||
         data.user.email ||
         "Usuario",
-
       correo:
         data.user.email ||
         correo
-
     };
 
 
-    localStorage.setItem(
+    escribirLocal(
       SESSION_KEY,
-      data.user.id
+      usuario
     );
 
 
@@ -3567,7 +3444,6 @@ $("formRecuperarPassword")
         error
       );
 
-
       return mensaje(
         "recuperarMensaje",
         "No se pudo enviar el enlace de recuperación.",
@@ -3614,7 +3490,6 @@ function mostrarNuevaPassword() {
           el.style.display =
             "none";
         }
-
       }
     );
 
@@ -3683,10 +3558,8 @@ $("formNuevaPassword")
     await supabaseClient
       .auth
       .updateUser({
-
         password:
           p1
-
       });
 
 
@@ -3696,7 +3569,6 @@ $("formNuevaPassword")
         "Error cambiando contraseña:",
         error
       );
-
 
       return mensaje(
         "nuevaPasswordMensaje",
@@ -3724,16 +3596,13 @@ $("formNuevaPassword")
           .style.display =
           "none";
 
-
         $("pantallaAuth")
           .style.display =
           "flex";
 
-
         $("app")
           .style.display =
           "none";
-
 
         $("tabLogin")
           .click();
@@ -3857,23 +3726,14 @@ function obtenerTotales() {
 
 
   return {
-
     ing,
-
     gas,
-
     gastosNormales,
-
     aportes,
-
     retiros,
-
     ahorro,
-
     balance,
-
     disponible
-
   };
 }
 
@@ -3896,45 +3756,29 @@ function renderResumen() {
 
   $("totalIngresos")
     .textContent =
-    money(
-      ing
-    );
-
+    money(ing);
 
   $("totalGastos")
     .textContent =
-    money(
-      gas
-    );
-
+    money(gas);
 
   $("totalBalance")
     .textContent =
-    money(
-      balance
-    );
-
+    money(balance);
 
   $("totalAhorro")
     .textContent =
-    money(
-      ahorro
-    );
-
+    money(ahorro);
 
   $("totalDisponible")
     .textContent =
-    money(
-      disponible
-    );
-
+    money(disponible);
 
   $("totalDisponible")
     .style.color =
     disponible < 0
       ? "var(--rojo-alerta)"
       : "var(--celeste-accent)";
-
 
   $("totalBalance")
     .style.color =
@@ -3992,12 +3836,10 @@ function renderCategorias() {
               0
             );
 
-
         const lim =
           Number(
             c.limite
           ) || 0;
-
 
         const pct =
           lim
@@ -4008,7 +3850,6 @@ function renderCategorias() {
                 100
               )
             : 0;
-
 
         const ms =
           movimientos
@@ -4031,24 +3872,17 @@ function renderCategorias() {
                   a.fecha
                 )
             )
-            .slice(
-              0,
-              3
-            );
-
+            .slice(0, 3);
 
         const div =
           document.createElement(
             "article"
           );
 
-
         div.className =
           "categoria-card";
 
-
         div.innerHTML = `
-
           <div class="categoria-icono">
             ${escapeHtml(
               c.icono ||
@@ -4057,28 +3891,23 @@ function renderCategorias() {
           </div>
 
           <div class="categoria-info">
-
             <h3>
               ${escapeHtml(
                 c.nombre
               )}
             </h3>
-
             <p>
               ${money(gastos)}
               /
               ${money(lim)}
             </p>
-
           </div>
 
           <div class="barra">
-
             <div
               class="progreso"
               style="width:${pct}%"
             ></div>
-
           </div>
 
           <small>
@@ -4090,30 +3919,24 @@ function renderCategorias() {
           </small>
 
           <div class="movimientos">
-
             ${
               ms.length
                 ? ms
                     .map(
                       m => `
-
                         <div class="movimiento">
-
                           <span>
                             ${escapeHtml(
                               m.descripcion ||
                               c.nombre
                             )}
                           </span>
-
                           <span>
                             ${money(
                               m.monto
                             )}
                           </span>
-
                         </div>
-
                       `
                     )
                     .join("")
@@ -4123,11 +3946,8 @@ function renderCategorias() {
                     </small>
                   `
             }
-
           </div>
-
         `;
-
 
         grid.appendChild(
           div
@@ -4183,7 +4003,6 @@ function getFixedProgress(
               x.fecha
             );
 
-
           return (
             d.getFullYear() ===
               y &&
@@ -4192,7 +4011,6 @@ function getFixedProgress(
           );
         }
       );
-
 
   const pagado =
     pagos.reduce(
@@ -4208,12 +4026,10 @@ function getFixedProgress(
       0
     );
 
-
   const objetivo =
     Number(
       g.monto
     ) || 0;
-
 
   const pendiente =
     Math.max(
@@ -4221,7 +4037,6 @@ function getFixedProgress(
       pagado,
       0
     );
-
 
   const pct =
     objetivo
@@ -4232,7 +4047,6 @@ function getFixedProgress(
           100
         )
       : 0;
-
 
   const diaVencimiento =
     Math.min(
@@ -4248,7 +4062,6 @@ function getFixedProgress(
       )
     );
 
-
   const venc =
     new Date(
       y,
@@ -4259,61 +4072,42 @@ function getFixedProgress(
       59
     );
 
-
   const completa =
     pagado >=
       objetivo &&
     objetivo > 0;
 
-
   let estado;
 
-
   if (completa) {
-
     estado =
       "pagado";
-
   } else if (
     new Date() >
     venc
   ) {
-
     estado =
       pagado > 0
         ? "parcial-atrasado"
         : "vencido";
-
   } else if (
     pagado > 0
   ) {
-
     estado =
       "parcial";
-
   } else {
-
     estado =
       "pendiente";
   }
 
-
   return {
-
     pagos,
-
     pagado,
-
     objetivo,
-
     pendiente,
-
     pct,
-
     venc,
-
     estado
-
   };
 }
 
@@ -4333,7 +4127,6 @@ function estadoFechaPago(
       venc
     );
 
-
   const diff =
     Math.round(
       (
@@ -4343,11 +4136,8 @@ function estadoFechaPago(
       86400000
     );
 
-
   if (
-    Math.abs(
-      diff
-    ) <=
+    Math.abs(diff) <=
     10
   ) {
 
@@ -4355,23 +4145,18 @@ function estadoFechaPago(
       diff <
       0
     ) {
-
       return `Pagado ${Math.abs(diff)} día${Math.abs(diff) !== 1 ? "s" : ""} antes`;
     }
-
 
     if (
       diff ===
       0
     ) {
-
       return "Pagado a tiempo";
     }
 
-
     return `Pagado ${diff} día${diff !== 1 ? "s" : ""} tarde`;
   }
-
 
   return fechaTexto(
     fecha
@@ -4387,10 +4172,8 @@ function obtenerClaseFijo(
     estado ===
     "pagado"
   ) {
-
     return "pagado";
   }
-
 
   if (
     estado ===
@@ -4398,19 +4181,15 @@ function obtenerClaseFijo(
     estado ===
       "parcial-atrasado"
   ) {
-
     return "atrasado";
   }
-
 
   if (
     estado ===
     "parcial"
   ) {
-
     return "parcial";
   }
-
 
   return "pendiente";
 }
@@ -4421,22 +4200,16 @@ function obtenerTextoEstadoFijo(
 ) {
 
   return {
-
     pagado:
       "✓ Pagado",
-
     pendiente:
       "○ Pendiente",
-
     parcial:
       "◐ Pago parcial",
-
     vencido:
       "⚠ Vencido",
-
     "parcial-atrasado":
       "⚠ Parcial atrasado"
-
   }[
     estado
   ] ||
@@ -4449,9 +4222,7 @@ function renderGastosFijos() {
   const box =
     $("listaGastosFijos");
 
-
   if (!box) return;
-
 
   const activos =
     gastosFijos.filter(
@@ -4460,28 +4231,21 @@ function renderGastosFijos() {
         false
     );
 
-
   if (
     !activos.length
   ) {
 
     box.innerHTML = `
-
       <div class="historial-vacio">
-
         <span>
           📌
         </span>
-
         No hay gastos fijos registrados.
-
       </div>
-
     `;
 
     return;
   }
-
 
   box.innerHTML =
     activos
@@ -4492,7 +4256,6 @@ function renderGastosFijos() {
             getFixedProgress(
               g
             );
-
 
           const pagosInfo =
             p.pagos.length
@@ -4517,43 +4280,31 @@ function renderGastosFijos() {
                   )
                   .map(
                     x => `
-
                       <div class="fijo-pago">
-
                         ${fechaTexto(
                           x.fecha
                         )}
-
                         ·
-
                         ${money(
                           x.monto
                         )}
-
                         ·
-
                         ${estadoFechaPago(
                           x.fecha,
                           p.venc
                         )}
-
                       </div>
-
                     `
                   )
                   .join("")
 
               : `
-
                   <div class="fijo-pago">
                     Sin pagos este mes
                   </div>
-
                 `;
 
-
           return `
-
             <div
               class="fijo-item ${obtenerClaseFijo(
                 p.estado
@@ -4561,7 +4312,6 @@ function renderGastosFijos() {
             >
 
               <div class="fijo-info">
-
                 <strong>
                   ${escapeHtml(
                     g.nombre
@@ -4583,16 +4333,13 @@ function renderGastosFijos() {
                 </small>
 
                 <div class="barra">
-
                   <div
                     class="progreso"
                     style="width:${p.pct}%"
                   ></div>
-
                 </div>
 
                 <small>
-
                   ${money(
                     p.pagado
                   )}
@@ -4600,23 +4347,18 @@ function renderGastosFijos() {
                   ${money(
                     p.objetivo
                   )}
-
                   · Pendiente
                   ${money(
                     p.pendiente
                   )}
-
                 </small>
 
                 <div class="fijo-pagos">
                   ${pagosInfo}
                 </div>
-
               </div>
 
-
               <div class="fijo-acciones">
-
                 <button
                   class="boton-secundario boton-pequeno"
                   onclick="abrirPagoFijo('${g.id}')"
@@ -4624,7 +4366,6 @@ function renderGastosFijos() {
                 >
                   Registrar pago
                 </button>
-
 
                 <button
                   class="boton-secundario boton-pequeno"
@@ -4634,7 +4375,6 @@ function renderGastosFijos() {
                   Editar
                 </button>
 
-
                 <button
                   class="boton-eliminar"
                   onclick="desactivarFijo('${g.id}')"
@@ -4643,11 +4383,9 @@ function renderGastosFijos() {
                 >
                   ✕
                 </button>
-
               </div>
 
             </div>
-
           `;
         }
       )
@@ -4664,7 +4402,6 @@ function actualizarSelects() {
   const cat =
     $("categoria");
 
-
   if (cat) {
 
     cat.innerHTML =
@@ -4673,7 +4410,6 @@ function actualizarSelects() {
           Selecciona una categoría
         </option>
       ` +
-
       distribucion
         .filter(
           x =>
@@ -4682,7 +4418,6 @@ function actualizarSelects() {
         )
         .map(
           c => `
-
             <option
               value="${escapeHtml(
                 c.id
@@ -4692,22 +4427,17 @@ function actualizarSelects() {
                 c.icono ||
                 "📦"
               )}
-
               ${escapeHtml(
                 c.nombre
               )}
-
             </option>
-
           `
         )
         .join("");
   }
 
-
   const filtro =
     $("filtroCategoria");
-
 
   if (filtro) {
 
@@ -4717,7 +4447,6 @@ function actualizarSelects() {
           Todas las categorías
         </option>
       ` +
-
       distribucion
         .filter(
           x =>
@@ -4726,7 +4455,6 @@ function actualizarSelects() {
         )
         .map(
           c => `
-
             <option
               value="${escapeHtml(
                 c.id
@@ -4736,34 +4464,25 @@ function actualizarSelects() {
                 c.icono ||
                 "📦"
               )}
-
               ${escapeHtml(
                 c.nombre
               )}
-
             </option>
-
           `
         )
         .join("") +
-
       `
-
         <option value="ahorro">
           💎 Aporte a ahorro
         </option>
-
         <option value="retiro_ahorro">
           ↩️ Retiro de ahorro
         </option>
-
       `;
   }
 
-
   const fijo =
     $("gastoFijoSeleccion");
-
 
   if (fijo) {
 
@@ -4773,7 +4492,6 @@ function actualizarSelects() {
           Ninguno
         </option>
       ` +
-
       gastosFijos
         .filter(
           x =>
@@ -4782,7 +4500,6 @@ function actualizarSelects() {
         )
         .map(
           g => `
-
             <option
               value="${escapeHtml(
                 g.id
@@ -4791,14 +4508,11 @@ function actualizarSelects() {
               ${escapeHtml(
                 g.nombre
               )}
-
               —
               ${money(
                 g.monto
               )}
-
             </option>
-
           `
         )
         .join("");
@@ -4815,9 +4529,7 @@ function renderMovimientosRecientes() {
   const recientes =
     $("movimientosRecientes");
 
-
   if (!recientes) return;
-
 
   const ultimos =
     movimientos
@@ -4839,34 +4551,24 @@ function renderMovimientosRecientes() {
         3
       );
 
-
   recientes.innerHTML =
     ultimos.length
-
       ? ultimos
           .map(
             renderMovimiento
           )
           .join("")
-
       : `
-
           <div class="historial-vacio">
-
             <span>
               📋
             </span>
-
             No hay movimientos todavía.
-
           </div>
-
         `;
-
 
   const contador =
     $("contadorMovimientosRecientes");
-
 
   if (contador) {
 
@@ -4889,34 +4591,28 @@ function renderHistorial(
       ?.value ||
     "todas";
 
-
   const tipo =
     $("filtroTipo")
       ?.value ||
     "todos";
-
 
   const periodo =
     $("filtroPeriodo")
       ?.value ||
     "todos";
 
-
   const desde =
     $("filtroDesde")
       ?.value ||
     "";
-
 
   const hasta =
     $("filtroHasta")
       ?.value ||
     "";
 
-
   let arr =
     movimientos.slice();
-
 
   if (
     cat !==
@@ -4933,7 +4629,6 @@ function renderHistorial(
       );
   }
 
-
   if (
     tipo !==
     "todos"
@@ -4947,10 +4642,8 @@ function renderHistorial(
       );
   }
 
-
   const now =
     new Date();
-
 
   if (
     periodo ===
@@ -4966,14 +4659,12 @@ function renderHistorial(
               m.fecha
             );
 
-
           const diff =
             (
               now -
               d
             ) /
             86400000;
-
 
           return (
             diff >=
@@ -4984,7 +4675,6 @@ function renderHistorial(
         }
       );
   }
-
 
   if (
     periodo ===
@@ -5000,7 +4690,6 @@ function renderHistorial(
               m.fecha
             );
 
-
           return (
             d.getMonth() ===
               now.getMonth() &&
@@ -5010,7 +4699,6 @@ function renderHistorial(
         }
       );
   }
-
 
   if (
     periodo ===
@@ -5027,7 +4715,6 @@ function renderHistorial(
       );
   }
 
-
   if (desde) {
 
     arr =
@@ -5040,7 +4727,6 @@ function renderHistorial(
       );
   }
 
-
   if (hasta) {
 
     arr =
@@ -5052,7 +4738,6 @@ function renderHistorial(
           hasta
       );
   }
-
 
   arr.sort(
     (
@@ -5067,55 +4752,38 @@ function renderHistorial(
       )
   );
 
-
   const listaCompleta =
     arr.slice();
-
 
   if (!completo) {
 
     arr =
-      arr.slice(
-        0,
-        3
-      );
+      arr.slice(0, 3);
   }
-
 
   const box =
     $("historialMovimientos");
 
-
   if (!box) return;
-
 
   box.innerHTML =
     arr.length
-
       ? arr
           .map(
             renderMovimiento
           )
           .join("")
-
       : `
-
           <div class="historial-vacio">
-
             <span>
               📋
             </span>
-
             No hay movimientos con estos filtros.
-
           </div>
-
         `;
-
 
   const contador =
     $("contadorHistorial");
-
 
   if (contador) {
 
@@ -5137,16 +4805,13 @@ function renderMovimiento(
     m.tipo ===
     "ingreso";
 
-
   const esAhorro =
     m.tipo ===
     "ahorro";
 
-
   const esRetiro =
     m.tipo ===
     "retiro_ahorro";
-
 
   const cat =
     distribucion.find(
@@ -5154,7 +4819,6 @@ function renderMovimiento(
         c.id ===
         m.categoria
     );
-
 
   const icon =
     esIngreso
@@ -5166,7 +4830,6 @@ function renderMovimiento(
           : cat?.icono ||
             "💸";
 
-
   const nombre =
     esIngreso
       ? "Ingreso"
@@ -5177,14 +4840,12 @@ function renderMovimiento(
           : cat?.nombre ||
             "Gasto";
 
-
   const signo =
     esIngreso
       ? "+"
       : esRetiro
         ? "↩"
         : "-";
-
 
   const claseValor =
     esIngreso
@@ -5195,53 +4856,37 @@ function renderMovimiento(
           ? "retiro"
           : "gasto";
 
-
   return `
-
     <div class="movimiento-historial">
-
       <div class="movimiento-principal">
-
         <div class="movimiento-icono">
           ${icon}
         </div>
-
         <div>
-
           <strong>
             ${escapeHtml(
               m.descripcion ||
               nombre
             )}
           </strong>
-
           <small>
-
             ${escapeHtml(
               nombre
             )}
-
             ·
-
             ${fechaTexto(
               m.fecha
             )}
-
             ${
               m.origenFijo
                 ? " · Gasto fijo"
                 : ""
             }
-
           </small>
-
         </div>
-
       </div>
 
-
       <div class="movimiento-valor">
-
         <strong
           class="${claseValor}"
         >
@@ -5249,10 +4894,7 @@ function renderMovimiento(
             m.monto
           )}
         </strong>
-
         <br>
-
-
         <button
           class="boton-secundario boton-pequeno"
           onclick="editarMovimiento('${m.id}')"
@@ -5260,8 +4902,6 @@ function renderMovimiento(
         >
           Editar
         </button>
-
-
         <button
           class="boton-eliminar"
           onclick="eliminarMovimiento('${m.id}')"
@@ -5270,11 +4910,8 @@ function renderMovimiento(
         >
           ✕
         </button>
-
       </div>
-
     </div>
-
   `;
 }
 
@@ -5321,20 +4958,15 @@ function mostrar(
           "none"
     );
 
-
   const el =
     $(id);
 
-
   if (!el) return;
-
 
   el.style.display =
     "block";
 
-
   establecerFechasHoy();
-
 
   el.scrollIntoView({
     behavior:
@@ -5351,20 +4983,16 @@ function cerrarFormGasto() {
     .style.display =
     "none";
 
-
   $("formGasto")
     .reset();
-
 
   $("gastoFijoSeleccion")
     .value =
     "";
 
-
   $("tipoSalida")
     .value =
     "gasto";
-
 
   $("tipoSalida")
     .dispatchEvent(
@@ -5380,21 +5008,17 @@ function establecerFechasHoy() {
   const hoy =
     hoyISO();
 
-
   if (
     $("fechaIngreso")
   ) {
-
     $("fechaIngreso")
       .value =
       hoy;
   }
 
-
   if (
     $("fechaGasto")
   ) {
-
     $("fechaGasto")
       .value =
       hoy;
@@ -5414,13 +5038,10 @@ function activarTarjeta(
   const el =
     $(id);
 
-
   if (!el) return;
-
 
   el.onclick =
     accion;
-
 
   el.onkeydown =
     e => {
@@ -5457,14 +5078,12 @@ activarTarjeta(
       .value =
       "gasto";
 
-
     $("tipoSalida")
       .dispatchEvent(
         new Event(
           "change"
         )
       );
-
 
     mostrar(
       "formularioGasto"
@@ -5481,14 +5100,12 @@ activarTarjeta(
       .value =
       "ahorro";
 
-
     $("tipoSalida")
       .dispatchEvent(
         new Event(
           "change"
         )
       );
-
 
     mostrar(
       "formularioGasto"
@@ -5509,10 +5126,8 @@ $("cerrarFormularioIngreso")
       .style.display =
       "none";
 
-
     $("formIngreso")
       .reset();
-
 
     establecerFechasHoy();
   };
@@ -5524,11 +5139,9 @@ $("formIngreso")
 
     e.preventDefault();
 
-
     const tipo =
       $("tipoIngreso")
         .value;
-
 
     const monto =
       Number(
@@ -5536,12 +5149,10 @@ $("formIngreso")
           .value
       );
 
-
     const fecha =
       $("fechaIngreso")
         .value ||
       hoyISO();
-
 
     if (
       !tipo ||
@@ -5554,43 +5165,31 @@ $("formIngreso")
       );
     }
 
-
     const movimiento = {
-
       id:
         nuevoUUID(),
-
       tipo:
         "ingreso",
-
       categoria:
         tipo,
-
       monto,
-
       descripcion:
         $("descripcionIngreso")
           .value
           .trim(),
-
       fecha
-
     };
-
 
     movimientos.push(
       movimiento
     );
 
-
     guardarMovimientosLocal();
-
 
     const ok =
       await guardarMovimientoSupabase(
         movimiento
       );
-
 
     if (!ok) {
 
@@ -5601,12 +5200,10 @@ $("formIngreso")
             movimiento.id
         );
 
-
       guardarMovimientosLocal();
 
       return;
     }
-
 
     e.target.reset();
 
@@ -5637,21 +5234,17 @@ $("tipoSalida")
       $("tipoSalida")
         .value;
 
-
     const normal =
       v ===
       "gasto";
-
 
     const ahorro =
       v ===
       "ahorro";
 
-
     const retiro =
       v ===
       "retiro_ahorro";
-
 
     $("camposGasto")
       .style.display =
@@ -5659,13 +5252,11 @@ $("tipoSalida")
         ? "block"
         : "none";
 
-
     $("campoTipoGasto")
       .style.display =
       normal
         ? "block"
         : "none";
-
 
     $("campoGastoFijo")
       .style.display =
@@ -5673,13 +5264,11 @@ $("tipoSalida")
         ? "block"
         : "none";
 
-
     $("campoRetiroAhorro")
       .style.display =
       retiro
         ? "block"
         : "none";
-
 
     $("descripcion")
       .placeholder =
@@ -5689,7 +5278,6 @@ $("tipoSalida")
           ? "Ej. Proyecto o emergencia"
           : "¿En qué gastaste?";
 
-
     $("guardarSalida")
       .textContent =
       ahorro
@@ -5697,7 +5285,6 @@ $("tipoSalida")
         : retiro
           ? "Registrar retiro de ahorro"
           : "Guardar gasto";
-
 
     if (
       ahorro ||
@@ -5707,7 +5294,6 @@ $("tipoSalida")
       $("categoria")
         .value =
         "";
-
 
       $("gastoFijoSeleccion")
         .value =
@@ -5722,11 +5308,9 @@ $("formGasto")
 
     e.preventDefault();
 
-
     const tipo =
       $("tipoSalida")
         .value;
-
 
     const monto =
       Number(
@@ -5734,23 +5318,19 @@ $("formGasto")
           .value
       );
 
-
     const fecha =
       $("fechaGasto")
         .value ||
       hoyISO();
 
-
     if (
       monto <=
       0
     ) {
-
       return alert(
         "Completa correctamente el monto."
       );
     }
-
 
     if (
       tipo ===
@@ -5760,15 +5340,12 @@ $("formGasto")
       !$("gastoFijoSeleccion")
         .value
     ) {
-
       return alert(
         "Selecciona una categoría."
       );
     }
 
-
     let movimiento;
-
 
     if (
       tipo ===
@@ -5785,7 +5362,6 @@ $("formGasto")
               .value
         );
 
-
       const descripcion =
         $("descripcion")
           .value
@@ -5793,33 +5369,23 @@ $("formGasto")
         g?.nombre ||
         "Gasto fijo";
 
-
       movimiento = {
-
         id:
           nuevoUUID(),
-
         tipo:
           "gasto",
-
         categoria:
           $("categoria")
             .value ||
           "otros",
-
         monto,
-
         descripcion,
-
         tipoGasto:
           "fijo",
-
         fecha,
-
         origenFijo:
           g?.id ||
           null
-
       };
 
     } else if (
@@ -5828,33 +5394,24 @@ $("formGasto")
     ) {
 
       movimiento = {
-
         id:
           nuevoUUID(),
-
         tipo:
           "gasto",
-
         categoria:
           $("categoria")
             .value,
-
         monto,
-
         descripcion:
           $("descripcion")
             .value
             .trim(),
-
         tipoGasto:
           $("tipoGasto")
             .value,
-
         fecha,
-
         origenFijo:
           null
-
       };
 
     } else if (
@@ -5863,28 +5420,20 @@ $("formGasto")
     ) {
 
       movimiento = {
-
         id:
           nuevoUUID(),
-
         tipo:
           "ahorro",
-
         categoria:
           "ahorro",
-
         monto,
-
         descripcion:
           $("descripcion")
             .value
             .trim(),
-
         fecha,
-
         origenFijo:
           null
-
       };
 
     } else {
@@ -5892,7 +5441,6 @@ $("formGasto")
       const saldo =
         obtenerTotales()
           .ahorro;
-
 
       if (
         monto >
@@ -5908,47 +5456,34 @@ $("formGasto")
         );
       }
 
-
       movimiento = {
-
         id:
           nuevoUUID(),
-
         tipo:
           "retiro_ahorro",
-
         categoria:
           "retiro_ahorro",
-
         monto,
-
         descripcion:
           $("descripcion")
             .value
             .trim(),
-
         fecha,
-
         origenFijo:
           null
-
       };
     }
-
 
     movimientos.push(
       movimiento
     );
 
-
     guardarMovimientosLocal();
-
 
     const ok =
       await guardarMovimientoSupabase(
         movimiento
       );
-
 
     if (!ok) {
 
@@ -5959,12 +5494,10 @@ $("formGasto")
             movimiento.id
         );
 
-
       guardarMovimientosLocal();
 
       return;
     }
-
 
     e.target.reset();
 
@@ -5983,12 +5516,9 @@ $("formGasto")
 window.eliminarMovimiento =
   async id => {
 
-    if (
-      !confirm(
-        "¿Eliminar este movimiento?"
-      )
-    ) return;
-
+    if (!confirm(
+      "¿Eliminar este movimiento?"
+    )) return;
 
     const anterior =
       movimientos.find(
@@ -5997,7 +5527,6 @@ window.eliminarMovimiento =
           id
       );
 
-
     movimientos =
       movimientos.filter(
         m =>
@@ -6005,35 +5534,25 @@ window.eliminarMovimiento =
           id
       );
 
-
     guardarMovimientosLocal();
-
 
     const ok =
       await eliminarMovimientoSupabase(
         id
       );
 
-
     if (!ok) {
 
-      if (
-        anterior
-      ) {
-
+      if (anterior) {
         movimientos.push(
           anterior
         );
       }
 
-
       guardarMovimientosLocal();
-
       render();
-
       return;
     }
-
 
     render();
   };
@@ -6049,24 +5568,19 @@ window.editarMovimiento =
           id
       );
 
-
     if (!m) return;
-
 
     $("editarId")
       .value =
       m.id;
 
-
     $("editarTipo")
       .value =
       m.tipo;
 
-
     $("editarMonto")
       .value =
       m.monto;
-
 
     $("editarFecha")
       .value =
@@ -6074,16 +5588,13 @@ window.editarMovimiento =
         m.fecha
       );
 
-
     $("editarDescripcion")
       .value =
       m.descripcion ||
       "";
 
-
     $("editarCategoria")
       .innerHTML =
-
       distribucion
         .filter(
           c =>
@@ -6092,50 +5603,38 @@ window.editarMovimiento =
         )
         .map(
           c => `
-
             <option
               value="${escapeHtml(
                 c.id
               )}"
             >
-
               ${escapeHtml(
                 c.icono ||
                 "📦"
               )}
-
               ${escapeHtml(
                 c.nombre
               )}
-
             </option>
-
           `
         )
         .join("") +
-
       `
-
         <option value="ahorro">
           💎 Aporte a ahorro
         </option>
-
         <option value="retiro_ahorro">
           ↩️ Retiro de ahorro
         </option>
-
       `;
-
 
     $("editarCategoria")
       .value =
       m.categoria;
 
-
     $("formularioEdicion")
       .style.display =
       "block";
-
 
     $("formularioEdicion")
       .scrollIntoView({
@@ -6154,7 +5653,6 @@ $("cerrarEdicion")
     $("formularioEdicion")
       .style.display =
       "none";
-
 
     $("formEdicion")
       .reset();
@@ -6177,7 +5675,6 @@ $("formEdicion")
 
     e.preventDefault();
 
-
     const m =
       movimientos.find(
         x =>
@@ -6186,20 +5683,16 @@ $("formEdicion")
             .value
       );
 
-
     if (!m) return;
-
 
     const copia =
       {
         ...m
       };
 
-
     const nuevoTipo =
       $("editarTipo")
         .value;
-
 
     const nuevoMonto =
       Number(
@@ -6207,28 +5700,23 @@ $("formEdicion")
           .value
       );
 
-
     const nuevaFecha =
       $("editarFecha")
         .value ||
       hoyISO();
 
-
     const nuevaCategoria =
       $("editarCategoria")
         .value;
-
 
     if (
       nuevoMonto <=
       0
     ) {
-
       return alert(
         "El monto debe ser mayor que cero."
       );
     }
-
 
     if (
       nuevoTipo ===
@@ -6239,7 +5727,6 @@ $("formEdicion")
         obtenerTotales()
           .ahorro;
 
-
       const retiroAnterior =
         m.tipo ===
         "retiro_ahorro"
@@ -6248,41 +5735,33 @@ $("formEdicion")
             )
           : 0;
 
-
       const ahorroDisponible =
         ahorroActual +
         retiroAnterior;
-
 
       if (
         nuevoMonto >
         ahorroDisponible
       ) {
-
         return alert(
           "No puedes guardar este retiro. Tu ahorro disponible sería insuficiente."
         );
       }
     }
 
-
     m.tipo =
       nuevoTipo;
-
 
     m.monto =
       nuevoMonto;
 
-
     m.fecha =
       nuevaFecha;
-
 
     m.descripcion =
       $("editarDescripcion")
         .value
         .trim();
-
 
     m.categoria =
       (
@@ -6298,7 +5777,6 @@ $("formEdicion")
 
             : "retiro_ahorro"
       );
-
 
     if (
       nuevoTipo !==
@@ -6322,15 +5800,12 @@ $("formEdicion")
         "variable";
     }
 
-
     guardarMovimientosLocal();
-
 
     const ok =
       await actualizarMovimientoSupabase(
         m
       );
-
 
     if (!ok) {
 
@@ -6339,17 +5814,12 @@ $("formEdicion")
         copia
       );
 
-
       guardarMovimientosLocal();
-
       render();
-
       return;
     }
 
-
     render();
-
 
     $("formularioEdicion")
       .style.display =
@@ -6367,11 +5837,9 @@ $("mostrarFormFijo")
 
     resetFijoForm();
 
-
     $("formGastoFijo")
       .style.display =
       "block";
-
 
     $("fijoNombre")
       .focus();
@@ -6384,7 +5852,6 @@ $("cancelarFijo")
 
     resetFijoForm();
 
-
     $("formGastoFijo")
       .style.display =
       "none";
@@ -6395,7 +5862,6 @@ function resetFijoForm() {
 
   $("formGastoFijo")
     .reset();
-
 
   $("fijoId")
     .value =
@@ -6413,38 +5879,30 @@ window.editarFijo =
           id
       );
 
-
     if (!g) return;
-
 
     $("fijoId")
       .value =
       g.id;
 
-
     $("fijoNombre")
       .value =
       g.nombre;
-
 
     $("fijoMonto")
       .value =
       g.monto;
 
-
     $("fijoDia")
       .value =
       g.dia;
-
 
     $("formGastoFijo")
       .style.display =
       "block";
 
-
     $("fijoNombre")
       .focus();
-
 
     $("formGastoFijo")
       .scrollIntoView({
@@ -6462,17 +5920,14 @@ $("formGastoFijo")
 
     e.preventDefault();
 
-
     const id =
       $("fijoId")
         .value;
-
 
     const nombre =
       $("fijoNombre")
         .value
         .trim();
-
 
     const monto =
       Number(
@@ -6480,13 +5935,11 @@ $("formGastoFijo")
           .value
       );
 
-
     const dia =
       Number(
         $("fijoDia")
           .value
       );
-
 
     if (
       !nombre ||
@@ -6503,9 +5956,7 @@ $("formGastoFijo")
       );
     }
 
-
     let gasto;
-
 
     if (id) {
 
@@ -6516,48 +5967,32 @@ $("formGastoFijo")
             id
         );
 
-
       if (!existente) return;
 
-
       gasto = {
-
         ...existente,
-
         nombre,
-
         monto,
-
         dia,
-
         activo:
           true
-
       };
 
     } else {
 
       gasto = {
-
         id:
           nuevoUUID(),
-
         nombre,
-
         monto,
-
         dia,
-
         activo:
           true,
-
         creado:
           new Date()
             .toISOString()
-
       };
     }
-
 
     const indice =
       gastosFijos.findIndex(
@@ -6565,7 +6000,6 @@ $("formGastoFijo")
           x.id ===
           gasto.id
       );
-
 
     const copiaAnterior =
       indice >= 0
@@ -6575,7 +6009,6 @@ $("formGastoFijo")
             ]
           }
         : null;
-
 
     if (
       indice >= 0
@@ -6591,15 +6024,12 @@ $("formGastoFijo")
       );
     }
 
-
     guardarFijosLocal();
-
 
     const ok =
       await guardarFijoSupabase(
         gasto
       );
-
 
     if (!ok) {
 
@@ -6624,20 +6054,15 @@ $("formGastoFijo")
           );
       }
 
-
       guardarFijosLocal();
-
       return;
     }
 
-
     resetFijoForm();
-
 
     $("formGastoFijo")
       .style.display =
       "none";
-
 
     actualizarSelects();
 
@@ -6655,7 +6080,6 @@ window.desactivarFijo =
           id
       );
 
-
     if (
       !g ||
       !confirm(
@@ -6663,37 +6087,26 @@ window.desactivarFijo =
       )
     ) return;
 
-
     const anterior =
       g.activo;
-
 
     g.activo =
       false;
 
-
     guardarFijosLocal();
-
 
     const ok =
       await desactivarFijoSupabase(
         id
       );
 
-
     if (!ok) {
-
       g.activo =
         anterior;
-
-
       guardarFijosLocal();
-
       render();
-
       return;
     }
-
 
     render();
   };
@@ -6706,7 +6119,6 @@ window.abrirPagoFijo =
       .value =
       "gasto";
 
-
     $("tipoSalida")
       .dispatchEvent(
         new Event(
@@ -6714,14 +6126,11 @@ window.abrirPagoFijo =
         )
       );
 
-
     actualizarSelects();
-
 
     $("gastoFijoSeleccion")
       .value =
       id;
-
 
     const g =
       gastosFijos.find(
@@ -6729,7 +6138,6 @@ window.abrirPagoFijo =
           x.id ===
           id
       );
-
 
     if (g) {
 
@@ -6743,19 +6151,16 @@ window.abrirPagoFijo =
               )
         );
 
-
       $("categoria")
         .value =
         vivienda?.id ||
         distribucion[0]?.id ||
         "";
 
-
       $("descripcion")
         .value =
         g.nombre;
     }
-
 
     mostrar(
       "formularioGasto"
@@ -6772,7 +6177,6 @@ $("mostrarDistribucion")
   () => {
 
     renderEditorDistribucion();
-
 
     $("modalDistribucion")
       .style.display =
@@ -6804,7 +6208,6 @@ $("modalDistribucion")
           .style.display =
           "none";
       }
-
     }
   );
 
@@ -6814,9 +6217,7 @@ function renderEditorDistribucion() {
   const box =
     $("listaDistribucionEditar");
 
-
   if (!box) return;
-
 
   box.innerHTML =
     distribucion
@@ -6827,24 +6228,18 @@ function renderEditorDistribucion() {
       )
       .map(
         c => `
-
           <div
             class="distribucion-edit-row"
           >
-
             <span>
-
               ${escapeHtml(
                 c.icono ||
                 "📦"
               )}
-
               ${escapeHtml(
                 c.nombre
               )}
-
             </span>
-
 
             <input
               type="number"
@@ -6861,7 +6256,6 @@ function renderEditorDistribucion() {
               title="Monto de control"
             >
 
-
             <button
               class="boton-secundario boton-pequeno"
               onclick="editarArea('${c.id}')"
@@ -6869,7 +6263,6 @@ function renderEditorDistribucion() {
             >
               Editar
             </button>
-
 
             <button
               class="boton-eliminar"
@@ -6879,9 +6272,7 @@ function renderEditorDistribucion() {
             >
               ✕
             </button>
-
           </div>
-
         `
       )
       .join("");
@@ -6898,9 +6289,7 @@ window.editarArea =
           id
       );
 
-
     if (!c) return;
-
 
     const n =
       prompt(
@@ -6908,16 +6297,13 @@ window.editarArea =
         c.nombre
       );
 
-
     if (
       n ===
       null
     ) return;
 
-
     const nombre =
       n.trim();
-
 
     if (!nombre) {
 
@@ -6926,7 +6312,6 @@ window.editarArea =
       );
     }
 
-
     const i =
       prompt(
         "Ícono (emoji):",
@@ -6934,37 +6319,30 @@ window.editarArea =
         "📦"
       );
 
-
     if (
       i ===
       null
     ) return;
-
 
     const anterior =
       {
         ...c
       };
 
-
     c.nombre =
       nombre;
-
 
     c.icono =
       i.trim() ||
       c.icono ||
       "📦";
 
-
     guardarDistribucionLocal();
-
 
     const ok =
       await guardarCategoriaSupabase(
         c
       );
-
 
     if (!ok) {
 
@@ -6973,19 +6351,14 @@ window.editarArea =
         anterior
       );
 
-
       guardarDistribucionLocal();
 
       renderEditorDistribucion();
-
       return;
     }
 
-
     construirCategorias();
-
     renderEditorDistribucion();
-
     render();
   };
 
@@ -7007,14 +6380,12 @@ window.eliminarArea =
       );
     }
 
-
     const c =
       distribucion.find(
         x =>
           x.id ===
           id
       );
-
 
     if (
       !c ||
@@ -7023,42 +6394,31 @@ window.eliminarArea =
       )
     ) return;
 
-
     const anterior =
       c.activo;
-
 
     c.activo =
       false;
 
-
     guardarDistribucionLocal();
-
 
     const ok =
       await desactivarCategoriaSupabase(
         id
       );
 
-
     if (!ok) {
 
       c.activo =
         anterior;
 
-
       guardarDistribucionLocal();
-
       renderEditorDistribucion();
-
       return;
     }
 
-
     construirCategorias();
-
     renderEditorDistribucion();
-
     render();
   };
 
@@ -7069,12 +6429,10 @@ $("formNuevaArea")
 
     e.preventDefault();
 
-
     const nombre =
       $("nuevaAreaNombre")
         .value
         .trim();
-
 
     const icono =
       $("nuevaAreaIcono")
@@ -7082,13 +6440,11 @@ $("formNuevaArea")
         .trim() ||
       "📦";
 
-
     const limite =
       Number(
         $("nuevaAreaLimite")
           .value
       ) || 0;
-
 
     if (!nombre) {
 
@@ -7096,7 +6452,6 @@ $("formNuevaArea")
         "Escribe un nombre para el área."
       );
     }
-
 
     if (
       distribucion.some(
@@ -7116,37 +6471,26 @@ $("formNuevaArea")
       );
     }
 
-
     const nueva = {
-
       id:
         nuevoUUID(),
-
       nombre,
-
       icono,
-
       limite,
-
       activo:
         true
-
     };
-
 
     distribucion.push(
       nueva
     );
 
-
     guardarDistribucionLocal();
-
 
     const ok =
       await guardarCategoriaSupabase(
         nueva
       );
-
 
     if (!ok) {
 
@@ -7157,19 +6501,13 @@ $("formNuevaArea")
             nueva.id
         );
 
-
       guardarDistribucionLocal();
-
       return;
     }
 
-
     e.target.reset();
-
     construirCategorias();
-
     renderEditorDistribucion();
-
     render();
   };
 
@@ -7179,7 +6517,6 @@ $("guardarLimitesDistribucion")
   async () => {
 
     const cambios = [];
-
 
     document
       .querySelectorAll(
@@ -7195,7 +6532,6 @@ $("guardarLimitesDistribucion")
                 i.dataset.id
             );
 
-
           if (c) {
 
             c.limite =
@@ -7206,18 +6542,14 @@ $("guardarLimitesDistribucion")
                 0
               );
 
-
             cambios.push(
               c
             );
           }
-
         }
       );
 
-
     guardarDistribucionLocal();
-
 
     for (
       const c
@@ -7229,11 +6561,9 @@ $("guardarLimitesDistribucion")
       );
     }
 
-
     $("modalDistribucion")
       .style.display =
       "none";
-
 
     render();
   };
@@ -7250,14 +6580,12 @@ $("filtroCategoria")
       true
     );
 
-
 $("filtroTipo")
   .onchange =
   () =>
     renderHistorial(
       true
     );
-
 
 $("filtroPeriodo")
   .onchange =
@@ -7266,7 +6594,6 @@ $("filtroPeriodo")
       true
     );
 
-
 $("filtroDesde")
   .onchange =
   () =>
@@ -7274,14 +6601,12 @@ $("filtroDesde")
       true
     );
 
-
 $("filtroHasta")
   .onchange =
   () =>
     renderHistorial(
       true
     );
-
 
 $("gestionarMovimientos")
   .onclick =
@@ -7291,11 +6616,9 @@ $("gestionarMovimientos")
       true
     );
 
-
     $("seccionHistorial")
       .style.display =
       "block";
-
 
     $("seccionHistorial")
       .scrollIntoView({
@@ -7305,7 +6628,6 @@ $("gestionarMovimientos")
           "start"
       });
   };
-
 
 $("cerrarHistorial")
   .onclick =
@@ -7328,7 +6650,6 @@ function exportarExcel(
   let arr =
     movimientos.slice();
 
-
   if (
     filtro ===
     "semana"
@@ -7347,7 +6668,6 @@ function exportarExcel(
             ) /
             86400000;
 
-
           return (
             diff >=
               0 &&
@@ -7358,7 +6678,6 @@ function exportarExcel(
       );
   }
 
-
   if (
     filtro ===
     "mes"
@@ -7366,7 +6685,6 @@ function exportarExcel(
 
     const ahora =
       new Date();
-
 
     arr =
       arr.filter(
@@ -7377,18 +6695,15 @@ function exportarExcel(
               m.fecha
             );
 
-
           return (
             d.getMonth() ===
               ahora.getMonth() &&
-
             d.getFullYear() ===
               ahora.getFullYear()
           );
         }
       );
   }
-
 
   arr.sort(
     (
@@ -7403,7 +6718,6 @@ function exportarExcel(
       )
   );
 
-
   function escaparHtml(
     valor
   ) {
@@ -7411,28 +6725,12 @@ function exportarExcel(
     return String(
       valor ?? ""
     )
-      .replaceAll(
-        "&",
-        "&amp;"
-      )
-      .replaceAll(
-        "<",
-        "&lt;"
-      )
-      .replaceAll(
-        ">",
-        "&gt;"
-      )
-      .replaceAll(
-        '"',
-        "&quot;"
-      )
-      .replaceAll(
-        "'",
-        "&#039;"
-      );
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
-
 
   function tipoTexto(
     tipo
@@ -7441,43 +6739,25 @@ function exportarExcel(
     if (
       tipo ===
       "ingreso"
-    ) {
-
-      return "Ingreso";
-    }
-
+    ) return "Ingreso";
 
     if (
       tipo ===
       "gasto"
-    ) {
-
-      return "Gasto";
-    }
-
+    ) return "Gasto";
 
     if (
       tipo ===
       "ahorro"
-    ) {
-
-      return "Aporte a ahorro";
-    }
-
+    ) return "Aporte a ahorro";
 
     if (
       tipo ===
       "retiro_ahorro"
-    ) {
+    ) return "Retiro de ahorro";
 
-      return "Retiro de ahorro";
-    }
-
-
-    return tipo ||
-      "";
+    return tipo || "";
   }
-
 
   function categoriaTexto(
     m
@@ -7486,20 +6766,12 @@ function exportarExcel(
     if (
       m.tipo ===
       "ahorro"
-    ) {
-
-      return "Ahorro";
-    }
-
+    ) return "Ahorro";
 
     if (
       m.tipo ===
       "retiro_ahorro"
-    ) {
-
-      return "Retiro de ahorro";
-    }
-
+    ) return "Retiro de ahorro";
 
     const categoria =
       distribucion.find(
@@ -7508,14 +6780,12 @@ function exportarExcel(
           m.categoria
       );
 
-
     return (
       categoria?.nombre ||
       m.categoria ||
       ""
     );
   }
-
 
   function tipoGastoTexto(
     m
@@ -7524,24 +6794,15 @@ function exportarExcel(
     if (
       m.tipoGasto ===
       "fijo"
-    ) {
-
-      return "Fijo";
-    }
-
+    ) return "Fijo";
 
     if (
       m.tipoGasto ===
       "variable"
-    ) {
-
-      return "Variable";
-    }
-
+    ) return "Variable";
 
     return "";
   }
-
 
   const filas =
     arr
@@ -7553,149 +6814,61 @@ function exportarExcel(
               m.fecha
             );
 
-
           const tipo =
             tipoTexto(
               m.tipo
             );
-
 
           const categoria =
             categoriaTexto(
               m
             );
 
-
           const monto =
             Number(
               m.monto ||
               0
-            ).toFixed(
-              2
-            );
-
+            ).toFixed(2);
 
           const descripcion =
             m.descripcion ||
             "";
-
 
           const tipoGasto =
             tipoGastoTexto(
               m
             );
 
-
           return `
-
             <tr>
-
-              <td>
-                ${escaparHtml(
-                  fecha
-                )}
-              </td>
-
-              <td>
-                ${escaparHtml(
-                  tipo
-                )}
-              </td>
-
-              <td>
-                ${escaparHtml(
-                  categoria
-                )}
-              </td>
-
-              <td
-                style="
-                  text-align:right;
-                  mso-number-format:'0.00';
-                "
-              >
-                ${monto}
-              </td>
-
-              <td>
-                ${escaparHtml(
-                  descripcion
-                )}
-              </td>
-
-              <td>
-                ${escaparHtml(
-                  tipoGasto
-                )}
-              </td>
-
+              <td>${escaparHtml(fecha)}</td>
+              <td>${escaparHtml(tipo)}</td>
+              <td>${escaparHtml(categoria)}</td>
+              <td style="text-align:right;mso-number-format:'0.00';">${monto}</td>
+              <td>${escaparHtml(descripcion)}</td>
+              <td>${escaparHtml(tipoGasto)}</td>
             </tr>
-
           `;
         }
       )
       .join("");
 
-
   const html = `
-
     <html>
-
       <head>
-
         <meta charset="UTF-8">
-
         <style>
-
-          body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-          }
-
-          h1 {
-            font-size: 22px;
-            margin-bottom: 6px;
-          }
-
-          p {
-            font-size: 12px;
-            color: #555;
-            margin-top: 0;
-          }
-
-          table {
-            border-collapse: collapse;
-            width: 100%;
-          }
-
-          th {
-            background: #1f2937;
-            color: white;
-            padding: 8px;
-            border: 1px solid #d1d5db;
-            text-align: left;
-          }
-
-          td {
-            padding: 7px;
-            border: 1px solid #d1d5db;
-          }
-
-          tr:nth-child(even) td {
-            background: #f3f4f6;
-          }
-
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { font-size: 22px; margin-bottom: 6px; }
+          p { font-size: 12px; color: #555; margin-top: 0; }
+          table { border-collapse: collapse; width: 100%; }
+          th { background: #1f2937; color: white; padding: 8px; border: 1px solid #d1d5db; text-align: left; }
+          td { padding: 7px; border: 1px solid #d1d5db; }
+          tr:nth-child(even) td { background: #f3f4f6; }
         </style>
-
       </head>
-
-
       <body>
-
-        <h1>
-          Kit de Finanzas
-        </h1>
-
+        <h1>Kit de Finanzas</h1>
         <p>
           Exportación de movimientos ·
           ${escaparHtml(
@@ -7708,68 +6881,33 @@ function exportarExcel(
                 : "Todos los movimientos"
           )}
         </p>
-
-
         <table>
-
           <thead>
-
             <tr>
-
-              <th>
-                Fecha
-              </th>
-
-              <th>
-                Tipo
-              </th>
-
-              <th>
-                Categoría
-              </th>
-
-              <th>
-                Monto
-              </th>
-
-              <th>
-                Descripción
-              </th>
-
-              <th>
-                Tipo de gasto
-              </th>
-
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Categoría</th>
+              <th>Monto</th>
+              <th>Descripción</th>
+              <th>Tipo de gasto</th>
             </tr>
-
           </thead>
-
-
           <tbody>
-
             ${
               filas ||
               `
                 <tr>
-
                   <td colspan="6">
                     No hay movimientos para exportar.
                   </td>
-
                 </tr>
               `
             }
-
           </tbody>
-
         </table>
-
       </body>
-
     </html>
-
   `;
-
 
   const blob =
     new Blob(
@@ -7783,47 +6921,37 @@ function exportarExcel(
       }
     );
 
-
   const url =
     URL.createObjectURL(
       blob
     );
-
 
   const enlace =
     document.createElement(
       "a"
     );
 
-
   enlace.href =
     url;
 
-
   enlace.download =
     `finanzas_${filtro}_${hoyISO()}.xls`;
-
 
   document.body.appendChild(
     enlace
   );
 
-
   enlace.click();
-
 
   document.body.removeChild(
     enlace
   );
 
-
   setTimeout(
     () => {
-
       URL.revokeObjectURL(
         url
       );
-
     },
     1000
   );
@@ -7898,23 +7026,18 @@ function establecerUsuarioDesdeAuth(
     return null;
   }
 
-
   return {
-
     id:
       authUser.id,
-
     nombre:
       authUser
         .user_metadata
         ?.nombre ||
       authUser.email ||
       "Usuario",
-
     correo:
       authUser.email ||
       ""
-
   };
 }
 
@@ -7927,10 +7050,7 @@ async function iniciarAplicacion() {
 
   if (
     iniciandoAplicacion
-  ) {
-
-    return;
-  }
+  ) return;
 
 
   iniciandoAplicacion =
@@ -7940,46 +7060,117 @@ async function iniciarAplicacion() {
   try {
 
     const {
-      data,
-      error
+      data
     } =
-    await supabaseClient
-      .auth
-      .getSession();
-
-
-    if (error) {
-
-      console.error(
-        "Error obteniendo sesión Supabase:",
-        error
-      );
-    }
-
-
-    const session =
-      data?.session;
+      await supabaseClient
+        .auth
+        .getSession();
 
 
     if (
-      session?.user
+      data?.session?.user
     ) {
 
       usuario =
         establecerUsuarioDesdeAuth(
-          session.user
+          data.session.user
         );
 
-
-      localStorage.setItem(
+      escribirLocal(
         SESSION_KEY,
-        session.user.id
+        usuario
       );
-
 
       await mostrarApp();
 
       return;
+    }
+
+
+    if (!estaOnline()) {
+
+      const local =
+        leerLocal(
+          SESSION_KEY,
+          null
+        );
+
+      if (
+        local?.id
+      ) {
+
+        usuario =
+          local;
+
+        await mostrarApp();
+
+        return;
+      }
+    }
+
+
+    $("pantallaAuth")
+      .style.display =
+      "flex";
+
+    $("app")
+      .style.display =
+      "none";
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "Error iniciando aplicación:",
+      error
+    );
+
+    const local =
+      leerLocal(
+        SESSION_KEY,
+        null
+      );
+
+    if (
+      local?.id
+    ) {
+
+      usuario =
+        local;
+
+      await mostrarApp();
+
+      return;
+    }
+
+    $("pantallaAuth")
+      .style.display =
+      "flex";
+
+    $("app")
+      .style.display =
+      "none";
+
+  } finally {
+
+    iniciandoAplicacion =
+      false;
+  }
+}
+
+
+async function cerrarSesion() {
+
+  try {
+
+    if (
+      navigator.onLine
+    ) {
+
+      await supabaseClient
+        .auth
+        .signOut();
     }
 
   } catch (
@@ -7987,33 +7178,67 @@ async function iniciarAplicacion() {
   ) {
 
     console.error(
-      "No se pudo consultar Supabase Auth:",
+      "Error cerrando sesión:",
       error
     );
-
-    /*
-     * Aunque haya un error de red,
-     * no borramos la sesión local de Supabase.
-     */
-  } finally {
-
-    iniciandoAplicacion =
-      false;
   }
+
+  try {
+
+    localStorage.removeItem(
+      SESSION_KEY
+    );
+
+  } catch {}
 
 
   usuario =
     null;
 
+  movimientos =
+    [];
+
+  gastosFijos =
+    [];
+
+  categorias =
+    {};
+
+  distribucion =
+    [];
+
+
+  cerrarPaneles();
+
+
+  if (
+    $("formularioNuevaPassword")
+  ) {
+
+    $("formularioNuevaPassword")
+      .style.display =
+      "none";
+  }
+
+
+  $("app")
+    .style.display =
+    "none";
 
   $("pantallaAuth")
     .style.display =
     "flex";
 
 
-  $("app")
-    .style.display =
-    "none";
+  $("formLogin")
+    .reset();
+
+  $("loginMensaje")
+    .textContent =
+    "";
+
+  $("tabLogin")
+    .click();
 }
 
 
@@ -8036,30 +7261,24 @@ supabaseClient
 
         setTimeout(
           () => {
-
             mostrarNuevaPassword();
-
           },
           0
         );
 
-
         return;
       }
-
 
       if (
         event ===
         "SIGNED_OUT"
       ) {
-
         return;
       }
 
-
       if (
         event ===
-        "SIGNED_IN" &&
+          "SIGNED_IN" &&
         session?.user &&
         !usuario
       ) {
@@ -8072,20 +7291,16 @@ supabaseClient
                 session.user
               );
 
-
-            localStorage.setItem(
+            escribirLocal(
               SESSION_KEY,
-              session.user.id
+              usuario
             );
 
-
             await mostrarApp();
-
           },
           0
         );
       }
-
 
       if (
         event ===
@@ -8099,16 +7314,13 @@ supabaseClient
             session.user
           );
 
-
-        localStorage.setItem(
+        escribirLocal(
           SESSION_KEY,
-          session.user.id
+          usuario
         );
-
 
         const usuarioActual =
           $("usuarioActual");
-
 
         if (
           usuarioActual
@@ -8132,28 +7344,22 @@ window.addEventListener(
   async () => {
 
     if (!usuario) {
-
       return;
     }
-
 
     if (
       sincronizando
     ) {
-
       return;
     }
 
-
     sincronizando =
       true;
-
 
     try {
 
       const todoBien =
         await sincronizarPendientesMovimientos();
-
 
       if (
         todoBien
@@ -8162,9 +7368,7 @@ window.addEventListener(
         await cargarDatosSupabase();
 
         construirCategorias();
-
         actualizarSelects();
-
         render();
 
         mostrarAvisoOffline(
@@ -8238,16 +7442,11 @@ if (
 establecerFechasHoy();
 
 
-/*
- * Arrancar la aplicación.
- * Supabase conservará la sesión en localStorage.
- */
-
 iniciarAplicacion();
 
 
 /* =========================================================
-   SERVICE WORKER
+   SERVICE WORKER OFFLINE
    ========================================================= */
 
 if (
@@ -8261,43 +7460,33 @@ if (
 
       try {
 
-        const registrations =
+        const registro =
           await navigator
             .serviceWorker
-            .getRegistrations();
-
-
-        for (
-          const registration
-          of registrations
-        ) {
-
-          await registration
-            .unregister();
-        }
-
-
-        if (
-          window.caches &&
-          caches.keys
-        ) {
-
-          const keys =
-            await caches.keys();
-
-
-          for (
-            const key
-            of keys
-          ) {
-
-            await caches.delete(
-              key
+            .register(
+              "./sw.js",
+              {
+                scope:
+                  "./"
+              }
             );
-          }
-        }
 
-      } catch {}
+        console.log(
+          "Service Worker registrado correctamente:",
+          registro.scope
+        );
+
+        registro.update();
+
+      } catch (
+        error
+      ) {
+
+        console.error(
+          "No se pudo registrar el Service Worker:",
+          error
+        );
+      }
     }
   );
 }
