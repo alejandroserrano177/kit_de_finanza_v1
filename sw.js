@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v19";
+const CACHE_NAME = "kit-finanzas-v20";
 
 const APP_ASSETS = [
   "./",
@@ -9,14 +9,8 @@ const APP_ASSETS = [
   "./icon-192.svg"
 ];
 
-const SUPABASE_SCRIPT_PREFIX =
+const SUPABASE_SCRIPT =
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-
-const SESSION_KEY = "kf_sesion_v2";
-
-/* =========================================================
-   FALLBACK LOCAL DE SUPABASE
-   ========================================================= */
 
 const OFFLINE_SUPABASE_FALLBACK = `
 (() => {
@@ -28,30 +22,29 @@ const OFFLINE_SUPABASE_FALLBACK = `
       if (!raw) return null;
 
       const parsed = JSON.parse(raw);
-      const id =
-        typeof parsed === "string"
-          ? parsed
-          : parsed?.id;
-
+      const id = typeof parsed === "string" ? parsed : parsed?.id;
       if (!id) return null;
+
+      const email =
+        typeof parsed === "object"
+          ? (parsed.email || parsed.correo || "")
+          : "";
+
+      const nombre =
+        typeof parsed === "object"
+          ? (
+              parsed.nombre ||
+              parsed.user_metadata?.nombre ||
+              email ||
+              "Usuario"
+            )
+          : "Usuario";
 
       return {
         id,
-        email:
-          typeof parsed === "object"
-            ? (parsed.email || parsed.correo || "")
-            : "",
+        email,
         user_metadata: {
-          nombre:
-            typeof parsed === "object"
-              ? (
-                  parsed.nombre ||
-                  parsed.user_metadata?.nombre ||
-                  parsed.email ||
-                  parsed.correo ||
-                  "Usuario"
-                )
-              : "Usuario"
+          nombre
         }
       };
     } catch {
@@ -59,70 +52,49 @@ const OFFLINE_SUPABASE_FALLBACK = `
     }
   }
 
-  function sessionPayload() {
+  function buildSession() {
     const user = getStoredUser();
 
-    return {
-      data: {
-        session: user
-          ? {
-              access_token: "offline",
-              refresh_token: "offline",
-              user
-            }
-          : null
-      },
-      error: null
-    };
+    return user
+      ? {
+          access_token: "offline",
+          refresh_token: "offline",
+          user
+        }
+      : null;
   }
 
-  function offlineQuery() {
-    const chain = {
-      select() { return chain; },
-      eq() { return chain; },
-      order() { return chain; },
-      single() { return chain; },
-      async upsert() {
-        return {
-          data: null,
-          error: { message: "Sin conexión" }
-        };
-      },
-      async insert() {
-        return {
-          data: null,
-          error: { message: "Sin conexión" }
-        };
-      },
-      async update() {
-        return {
-          data: null,
-          error: { message: "Sin conexión" }
-        };
-      },
-      async delete() {
-        return {
-          data: null,
-          error: { message: "Sin conexión" }
-        };
-      }
-    };
+  window.supabase = {
+    createClient() {
+      const listeners = new Set();
 
-    return chain;
-  }
-
-  function createOfflineClient() {
-    return {
-      auth: {
+      const auth = {
         async getSession() {
-          return sessionPayload();
+          return {
+            data: {
+              session: buildSession()
+            },
+            error: null
+          };
         },
 
-        onAuthStateChange() {
+        onAuthStateChange(callback) {
+          listeners.add(callback);
+
+          const session = buildSession();
+
+          queueMicrotask(() => {
+            if (session) {
+              callback("SIGNED_IN", session);
+            }
+          });
+
           return {
             data: {
               subscription: {
-                unsubscribe() {}
+                unsubscribe() {
+                  listeners.delete(callback);
+                }
               }
             }
           };
@@ -132,6 +104,13 @@ const OFFLINE_SUPABASE_FALLBACK = `
           try {
             localStorage.removeItem(SESSION_KEY);
           } catch {}
+
+          for (const callback of listeners) {
+            try {
+              callback("SIGNED_OUT", null);
+            } catch {}
+          }
+
           return { error: null };
         },
 
@@ -159,7 +138,7 @@ const OFFLINE_SUPABASE_FALLBACK = `
           return {
             error: {
               message:
-                "Sin conexión. La recuperación requiere Internet."
+                "Sin conexión. La recuperación de contraseña requiere Internet."
             }
           };
         },
@@ -173,58 +152,47 @@ const OFFLINE_SUPABASE_FALLBACK = `
             }
           };
         }
-      },
+      };
 
-      from() {
-        return offlineQuery();
-      }
-    };
-  }
-
-  window.__KF_OFFLINE_SUPABASE__ = true;
-  window.__KF_CREATE_OFFLINE_CLIENT__ = createOfflineClient;
-
-  if (!window.supabase) {
-    window.supabase = {};
-  }
-
-  window.supabase.createClient =
-    createOfflineClient;
+      return {
+        auth,
+        from() {
+          return {
+            select() { return this; },
+            eq() { return this; },
+            order() { return this; },
+            single() { return this; },
+            upsert: async () => ({ data: null, error: { message: "Sin conexión" } }),
+            insert: async () => ({ data: null, error: { message: "Sin conexión" } }),
+            update: async () => ({ data: null, error: { message: "Sin conexión" } }),
+            delete: async () => ({ data: null, error: { message: "Sin conexión" } })
+          };
+        }
+      };
+    }
+  };
 })();
 `;
 
-/* =========================================================
-   PROTECCIÓN PARA APP.JS OFFLINE
-   ========================================================= */
+function esAppJs(url) {
+  return url.endsWith("/app.js") || url.endsWith("./app.js");
+}
 
-const OFFLINE_APP_BOOT = `
-(() => {
-  if (
-    !window.__KF_OFFLINE_SUPABASE__ &&
-    typeof window.__KF_CREATE_OFFLINE_CLIENT__ !== "function"
-  ) {
-    return;
+function esSupabaseScript(url) {
+  return url === SUPABASE_SCRIPT;
+}
+
+async function cachear(cache, request, response) {
+  if (!response) return;
+
+  if (response.ok || response.type === "opaque") {
+    try {
+      await cache.put(request, response.clone());
+    } catch (error) {
+      console.warn("No se pudo actualizar caché:", error);
+    }
   }
-
-  const originalCreateClient =
-    window.__KF_CREATE_OFFLINE_CLIENT__ ||
-    window.supabase?.createClient;
-
-  if (typeof originalCreateClient !== "function") {
-    return;
-  }
-
-  window.supabase = window.supabase || {};
-  window.supabase.createClient =
-    function () {
-      return originalCreateClient();
-    };
-})();
-`;
-
-/* =========================================================
-   INSTALACIÓN
-   ========================================================= */
+}
 
 self.addEventListener("install", event => {
   event.waitUntil(
@@ -233,13 +201,8 @@ self.addEventListener("install", event => {
 
       for (const asset of APP_ASSETS) {
         try {
-          const response = await fetch(asset, {
-            cache: "no-store"
-          });
-
-          if (response.ok) {
-            await cache.put(asset, response.clone());
-          }
+          const response = await fetch(asset, { cache: "no-store" });
+          await cachear(cache, asset, response);
         } catch (error) {
           console.warn("No se pudo precachear:", asset, error);
         }
@@ -249,19 +212,22 @@ self.addEventListener("install", event => {
         "offline-supabase-fallback.js",
         new Response(OFFLINE_SUPABASE_FALLBACK, {
           headers: {
-            "Content-Type": "application/javascript"
+            "Content-Type": "application/javascript; charset=UTF-8"
           }
         })
       );
+
+      try {
+        const response = await fetch(SUPABASE_SCRIPT, { cache: "no-store" });
+        await cachear(cache, SUPABASE_SCRIPT, response);
+      } catch (error) {
+        console.warn("Supabase no disponible durante instalación:", error);
+      }
 
       await self.skipWaiting();
     })()
   );
 });
-
-/* =========================================================
-   ACTIVACIÓN
-   ========================================================= */
 
 self.addEventListener("activate", event => {
   event.waitUntil(
@@ -279,98 +245,64 @@ self.addEventListener("activate", event => {
   );
 });
 
-/* =========================================================
-   PETICIONES
-   ========================================================= */
-
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") {
-    return;
-  }
+  if (event.request.method !== "GET") return;
 
   event.respondWith(
     (async () => {
-      const url = event.request.url;
-      const esSupabase =
-        url.startsWith(SUPABASE_SCRIPT_PREFIX);
-      const esAppJs =
-        new URL(url).pathname.endsWith("/app.js");
-
-      /*
-       * OFFLINE REAL:
-       * no intentar red ni HTTP cache para Supabase.
-       */
-      if (esSupabase) {
-        try {
-          const response = await fetch(event.request, {
-            cache: "no-store"
-          });
-
-          if (response.ok) {
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(event.request, response.clone());
-            return response;
-          }
-        } catch {}
-
-        return new Response(
-          OFFLINE_SUPABASE_FALLBACK,
-          {
-            headers: {
-              "Content-Type": "application/javascript"
-            }
-          }
-        );
-      }
+      const request = event.request;
+      const url = request.url;
 
       try {
-        const response = await fetch(event.request, {
-          cache: "no-store"
-        });
+        const response = await fetch(request, { cache: "no-store" });
 
-        if (
-          response.ok ||
-          response.type === "opaque"
-        ) {
+        if (response.ok || response.type === "opaque") {
           const cache = await caches.open(CACHE_NAME);
-          await cache.put(event.request, response.clone());
+          await cachear(cache, request, response);
         }
 
         return response;
-      } catch (error) {
+      } catch {
         const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(event.request);
 
-        if (!cached) {
-          if (event.request.mode === "navigate") {
-            const index = await cache.match("./index.html");
-            if (index) return index;
-          }
-
-          return new Response("Sin conexión", {
-            status: 503,
-            statusText: "Offline"
+        if (esSupabaseScript(url)) {
+          return new Response(OFFLINE_SUPABASE_FALLBACK, {
+            headers: {
+              "Content-Type": "application/javascript; charset=UTF-8"
+            }
           });
         }
 
-        /*
-         * Cuando app.js se entrega offline, anteponemos
-         * una protección que fuerza el cliente local.
-         */
-        if (esAppJs) {
-          const source = await cached.text();
+        if (esAppJs(url)) {
+          const cachedApp = await cache.match(request);
 
-          return new Response(
-            OFFLINE_APP_BOOT + "\n" + OFFLINE_SUPABASE_FALLBACK + "\n" + source,
-            {
-              headers: {
-                "Content-Type": "application/javascript"
+          if (cachedApp) {
+            const appText = await cachedApp.text();
+
+            return new Response(
+              OFFLINE_SUPABASE_FALLBACK + "\n" + appText,
+              {
+                headers: {
+                  "Content-Type": "application/javascript; charset=UTF-8",
+                  "Cache-Control": "no-store"
+                }
               }
-            }
-          );
+            );
+          }
         }
 
-        return cached;
+        const cached = await cache.match(request);
+        if (cached) return cached;
+
+        if (request.mode === "navigate") {
+          const index = await cache.match("./index.html");
+          if (index) return index;
+        }
+
+        return new Response("Sin conexión", {
+          status: 503,
+          statusText: "Offline"
+        });
       }
     })()
   );
