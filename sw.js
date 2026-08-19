@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v21";
+const CACHE_NAME = "kit-finanzas-v22";
 
 const APP_ASSETS = [
   "./",
@@ -6,11 +6,88 @@ const APP_ASSETS = [
   "./style.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icon-192.svg"
+  "./icon-192.svg",
+  "./offline-boot.js"
 ];
 
 const SUPABASE_SCRIPT =
-  "https://cdn.jsdelivr.net/npm/@Supabase/supabase-js@2";
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+
+function transformarIndex(html) {
+  if (html.includes("offline-boot.js")) {
+    return html;
+  }
+
+  const patrones = [
+    '<script src="./app.js"',
+    '<script src="app.js"',
+    "<script src='./app.js'",
+    "<script src='app.js'"
+  ];
+
+  for (const patron of patrones) {
+    if (html.includes(patron)) {
+      return html.replace(
+        patron,
+        '<script src="./offline-boot.js"></script>\n    ' + patron
+      );
+    }
+  }
+
+  return html;
+}
+
+async function cacheRespuesta(request, response) {
+  try {
+    if (!response || !response.ok) {
+      return response;
+    }
+
+    const cache =
+      await caches.open(CACHE_NAME);
+
+    if (
+      new URL(request.url).pathname.endsWith("/index.html") ||
+      request.mode === "navigate"
+    ) {
+      const html =
+        await response.clone().text();
+
+      const transformado =
+        new Response(
+          transformarIndex(html),
+          {
+            headers: {
+              "Content-Type":
+                "text/html; charset=UTF-8",
+              "Cache-Control":
+                "no-store"
+            }
+          }
+        );
+
+      await cache.put(
+        request,
+        transformado.clone()
+      );
+
+      return transformado;
+    }
+
+    await cache.put(
+      request,
+      response.clone()
+    );
+
+  } catch (error) {
+    console.warn(
+      "No se pudo actualizar caché:",
+      error
+    );
+  }
+
+  return response;
+}
 
 /* =========================================================
    INSTALACIÓN
@@ -21,13 +98,9 @@ self.addEventListener(
     event.waitUntil(
       (async () => {
         const cache =
-          await caches.open(
-            CACHE_NAME
-          );
+          await caches.open(CACHE_NAME);
 
-        for (
-          const asset of APP_ASSETS
-        ) {
+        for (const asset of APP_ASSETS) {
           try {
             const response =
               await fetch(
@@ -35,7 +108,27 @@ self.addEventListener(
                 { cache: "no-store" }
               );
 
-            if (response.ok) {
+            if (!response.ok) {
+              continue;
+            }
+
+            if (asset === "./index.html") {
+              const html =
+                await response.clone().text();
+
+              await cache.put(
+                asset,
+                new Response(
+                  transformarIndex(html),
+                  {
+                    headers: {
+                      "Content-Type":
+                        "text/html; charset=UTF-8"
+                    }
+                  }
+                )
+              );
+            } else {
               await cache.put(
                 asset,
                 response.clone()
@@ -50,10 +143,6 @@ self.addEventListener(
           }
         }
 
-        /*
-         * Guardamos la librería real de Supabase cuando hay Internet.
-         * Si no puede descargarse, la aplicación sigue usando su caché.
-         */
         try {
           const response =
             await fetch(
@@ -130,32 +219,10 @@ self.addEventListener(
               { cache: "no-store" }
             );
 
-          if (
-            response &&
-            (
-              response.ok ||
-              response.type === "opaque"
-            )
-          ) {
-            try {
-              const cache =
-                await caches.open(
-                  CACHE_NAME
-                );
-
-              await cache.put(
-                event.request,
-                response.clone()
-              );
-            } catch (error) {
-              console.warn(
-                "No se pudo actualizar caché:",
-                error
-              );
-            }
-          }
-
-          return response;
+          return await cacheRespuesta(
+            event.request,
+            response
+          );
 
         } catch {
           const cached =
