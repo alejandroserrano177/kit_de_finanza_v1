@@ -41,6 +41,7 @@
 
   function sesionLocal() {
     const user = leerUsuarioLocal();
+
     return user
       ? {
           access_token: "offline",
@@ -49,6 +50,8 @@
         }
       : null;
   }
+
+  window.__KF_OFFLINE_MODE__ = true;
 
   window.supabase = {
     createClient() {
@@ -164,4 +167,10 @@
       };
     }
   };
+
+  window.addEventListener("online", () => {
+    if (window.__KF_OFFLINE_MODE__) {
+      window.location.reload();
+    }
+  }, { once: true });
 })();
