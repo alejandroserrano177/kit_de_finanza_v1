@@ -59,11 +59,12 @@
     const s = document.createElement("style");
     s.id = STYLE_ID;
     s.textContent = `
-      #${SELECTOR_ID}{display:flex;justify-content:flex-end;align-items:center;margin:0 0 18px}
-      #${SELECTOR_ID} select{appearance:auto;min-width:155px;height:40px;padding:0 34px 0 13px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;color:#334155;font:inherit;font-weight:600;box-shadow:0 2px 8px rgba(15,23,42,.05);cursor:pointer;outline:none;transition:border-color .15s,box-shadow .15s}
-      #${SELECTOR_ID} select:hover{border-color:#b8c4d3}
-      #${SELECTOR_ID} select:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-      @media(max-width:600px){#${SELECTOR_ID}{margin-bottom:12px}#${SELECTOR_ID} select{width:100%}}
+      #${SELECTOR_ID}{display:flex;align-items:center;justify-content:flex-end;margin:0 0 16px;min-height:38px}
+      #${SELECTOR_ID}::before{content:"Período";margin-right:10px;color:#64748b;font-size:13px;font-weight:600}
+      #${SELECTOR_ID} select{appearance:none;min-width:148px;height:38px;padding:0 36px 0 13px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#1e293b;font:inherit;font-size:14px;font-weight:600;box-shadow:0 1px 3px rgba(15,23,42,.04);cursor:pointer;outline:none;background-image:linear-gradient(45deg,transparent 50%,#64748b 50%),linear-gradient(135deg,#64748b 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;transition:border-color .15s,box-shadow .15s}
+      #${SELECTOR_ID} select:hover{border-color:#cbd5e1}
+      #${SELECTOR_ID} select:focus{border-color:#94a3b8;box-shadow:0 0 0 3px rgba(100,116,139,.10)}
+      @media(max-width:600px){#${SELECTOR_ID}{justify-content:space-between;margin-bottom:12px}#${SELECTOR_ID} select{min-width:0;width:155px}}
     `;
     document.head.appendChild(s);
   }
@@ -108,8 +109,7 @@
   function aplicar() {
     const app = document.querySelector("#app");
     const resumen = document.querySelector(".resumen");
-    if (!app || !resumen || app.style.display === "none") return;
-    if (!session()?.id) return;
+    if (!app || !resumen || app.style.display === "none" || !session()?.id) return;
     estilos();
     const select = selector();
     if (!select) return;
@@ -131,7 +131,6 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) aplicar(); });
     window.addEventListener("storage", () => { ultimoSnapshot = ""; aplicar(); });
     window.addEventListener("online", () => { ultimoSnapshot = ""; setTimeout(aplicar, 300); });
-    // La aplicación existente cambia el contenido al iniciar sesión; un único observer ligero detecta ese momento.
     const observer = new MutationObserver(() => {
       if (document.querySelector("#app")?.style.display !== "none") aplicar();
     });
