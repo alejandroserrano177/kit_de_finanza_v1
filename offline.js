@@ -38,16 +38,13 @@
     return /kf_[^_]+_(movimientos|fijos|distribucion)$/.test(key || "");
   }
 
-  /* Nunca permitimos que una respuesta remota vacía destruya una copia local válida. */
   const originalSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function(key, value) {
     if (esListaDatos(key)) {
       try {
         const anterior = JSON.parse(this.getItem(key) || "[]");
         const nuevo = JSON.parse(value);
-        if (Array.isArray(anterior) && anterior.length > 0 && Array.isArray(nuevo) && nuevo.length === 0) {
-          return;
-        }
+        if (Array.isArray(anterior) && anterior.length > 0 && Array.isArray(nuevo) && nuevo.length === 0) return;
       } catch {}
     }
     return originalSetItem.call(this, key, value);
@@ -71,9 +68,7 @@
     if (!usuarioId()) return;
     await db.open();
     const row = movimientoNormalizado(m, sincronizado);
-    const existente = row.id
-      ? await db.movimientos.where("id").equals(row.id).first()
-      : null;
+    const existente = row.id ? await db.movimientos.where("id").equals(row.id).first() : null;
     if (existente) row.id_local = existente.id_local;
     await db.movimientos.put(row);
 
@@ -108,21 +103,11 @@
     if (!usuarioId()) return;
     await db.open();
     const p = prefijo();
-
-    const movimientos = await db.movimientos
-      .where("user_id").equals(usuarioId())
-      .toArray();
+    const movimientos = await db.movimientos.where("user_id").equals(usuarioId()).toArray();
     if (movimientos.length) {
-      const lista = movimientos.map(r => r.payload || {
-        id: r.id,
-        tipo: r.tipo,
-        monto: r.monto,
-        descripcion: r.concepto,
-        fecha: r.fecha
-      });
+      const lista = movimientos.map(r => r.payload || { id: r.id, tipo: r.tipo, monto: r.monto, descripcion: r.concepto, fecha: r.fecha });
       originalSetItem.call(localStorage, `${p}movimientos`, JSON.stringify(lista));
     }
-
     for (const tabla of ["fijos", "distribucion"]) {
       const row = await db.estado.get(`${p}${tabla}`);
       if (row && row.valor != null) {
@@ -144,11 +129,9 @@
     let payload = null;
     const filtros = [];
     let terminado = false;
-
     const terminar = async () => {
       if (terminado) return { data: payload, error: null };
       terminado = true;
-
       if (operacion === "select") {
         if (tabla === "movimientos") {
           const rows = await db.movimientos.where("user_id").equals(usuarioId()).toArray();
@@ -156,12 +139,9 @@
         }
         return { data: leer(clave(tabla), []), error: null };
       }
-
       if (tabla === "movimientos") {
         const items = Array.isArray(payload) ? payload : [payload];
-        if (operacion === "insert" || operacion === "upsert") {
-          for (const item of items) await guardarMovimientoLocal(item, 0);
-        }
+        if (operacion === "insert" || operacion === "upsert") for (const item of items) await guardarMovimientoLocal(item, 0);
       } else if (operacion === "upsert" || operacion === "insert") {
         const actuales = leer(clave(tabla), []) || [];
         const items = Array.isArray(payload) ? payload : [payload];
@@ -172,11 +152,9 @@
         }
         await guardarEstado(tabla, actuales);
       }
-
       await guardarPendiente(tabla, operacion, payload, filtros);
       return { data: Array.isArray(payload) ? payload : [payload], error: null };
     };
-
     const b = {
       select() { return b; },
       eq(column, value) { filtros.push({ column, value }); return b; },
@@ -211,7 +189,6 @@
           for (const f of op.filtros || []) q = q.eq(f.column, f.value);
           const resultado = await q.select();
           if (resultado?.error) throw resultado.error;
-
           if (op.tabla === "movimientos") {
             const items = Array.isArray(op.payload) ? op.payload : [op.payload];
             for (const item of items) {
@@ -234,7 +211,6 @@
   window.sincronizarPendientes = sincronizarPendientes;
   window.addEventListener("online", sincronizarPendientes);
 
-  /* Intercepta el cliente sin tocar el app.js de miles de líneas. */
   const supabase = window.supabase;
   if (supabase?.createClient) {
     const originalCreateClient = supabase.createClient.bind(supabase);
@@ -253,4 +229,15 @@
     await capturarEstadoLocal();
     await sincronizarPendientes();
   })();
+
+  /* El dashboard mensual se carga después de app.js, sin modificar su lógica. */
+  function cargarModuloMensual() {
+    if (document.getElementById("kit-finanzas-monthly-js")) return;
+    const script = document.createElement("script");
+    script.id = "kit-finanzas-monthly-js";
+    script.src = "./monthly.js?v=1";
+    script.defer = true;
+    document.head.appendChild(script);
+  }
+  setTimeout(cargarModuloMensual, 0);
 })();
