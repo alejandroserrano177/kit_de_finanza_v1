@@ -1,8 +1,23 @@
 (() => {
   const SESSION_KEY = "kf_sesion_v2";
+  const SNAPSHOT_KEY = "kf_offline_snapshot_v1";
 
-  if (navigator.onLine) {
-    return;
+  function leerJson(key, fallback = null) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? fallback : JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function escribirJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function normalizarUsuario(parsed) {
@@ -14,9 +29,7 @@
       };
     }
 
-    if (!parsed || !parsed.id) {
-      return null;
-    }
+    if (!parsed || !parsed.id) return null;
 
     return {
       id: parsed.id,
@@ -32,117 +45,114 @@
     };
   }
 
-  function tieneDatosLocales(userId) {
-    if (!userId) return false;
+  function datosUsuario(userId) {
+    if (!userId) return null;
 
-    const sufijos = [
-      "movimientos",
-      "distribucion",
-      "fijos"
-    ];
-
-    return sufijos.some(sufijo => {
-      try {
-        const raw = localStorage.getItem(
-          `kf_${userId}_${sufijo}`
-        );
-
-        if (!raw) return false;
-
-        const valor = JSON.parse(raw);
-        return Array.isArray(valor) && valor.length > 0;
-      } catch {
-        return false;
-      }
-    });
+    return {
+      movimientos:
+        leerJson(`kf_${userId}_movimientos`, []) || [],
+      fijos:
+        leerJson(`kf_${userId}_fijos`, []) || [],
+      distribucion:
+        leerJson(`kf_${userId}_distribucion`, []) || []
+    };
   }
 
-  function detectarUsuarioDesdeDatosLocales() {
-    try {
-      const candidatos = new Map();
+  function puntuarDatos(datos) {
+    return (
+      (Array.isArray(datos.movimientos) ? datos.movimientos.length : 0) +
+      (Array.isArray(datos.fijos) ? datos.fijos.length : 0) +
+      (Array.isArray(datos.distribucion) ? datos.distribucion.length : 0)
+    );
+  }
 
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
+  function detectarMejorUsuarioLocal() {
+    let mejorId = null;
+    let mejorDatos = null;
+    let mejorPuntaje = -1;
 
-        const match = key.match(
-          /^kf_(.+)_(movimientos|distribucion|fijos)$/
-        );
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
 
-        if (!match) continue;
+      const match = key.match(/^kf_(.+)_(movimientos|fijos|distribucion)$/);
+      if (!match) continue;
 
-        const userId = match[1];
-        let cantidad = 0;
+      const userId = match[1];
+      const datos = datosUsuario(userId);
+      const puntaje = puntuarDatos(datos);
 
-        try {
-          const valor = JSON.parse(localStorage.getItem(key));
-          cantidad = Array.isArray(valor) ? valor.length : 0;
-        } catch {}
-
-        const actual = candidatos.get(userId) || 0;
-        candidatos.set(userId, actual + cantidad);
+      if (puntaje > mejorPuntaje) {
+        mejorId = userId;
+        mejorDatos = datos;
+        mejorPuntaje = puntaje;
       }
-
-      let mejorId = null;
-      let mejorPuntaje = -1;
-
-      for (const [userId, puntaje] of candidatos.entries()) {
-        if (puntaje > mejorPuntaje) {
-          mejorId = userId;
-          mejorPuntaje = puntaje;
-        }
-      }
-
-      if (!mejorId) return null;
-
-      const usuario = {
-        id: mejorId,
-        email: "",
-        user_metadata: {
-          nombre: "Usuario"
-        }
-      };
-
-      try {
-        localStorage.setItem(
-          SESSION_KEY,
-          JSON.stringify({
-            id: mejorId,
-            nombre: "Usuario",
-            correo: ""
-          })
-        );
-      } catch {}
-
-      return usuario;
-    } catch {
-      return null;
     }
-  }
 
-  function leerUsuarioLocal() {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const usuario = normalizarUsuario(parsed);
-
-        if (
-          usuario &&
-          tieneDatosLocales(usuario.id)
-        ) {
-          return usuario;
+    return mejorId
+      ? {
+          id: mejorId,
+          usuario: {
+            id: mejorId,
+            correo: "",
+            nombre: "Usuario"
+          },
+          datos: mejorDatos || datosUsuario(mejorId)
         }
-      }
-    } catch {}
-
-    return detectarUsuarioDesdeDatosLocales();
+      : null;
   }
 
-  function sesionLocal() {
-    const user = leerUsuarioLocal();
+  function crearSnapshotDesdeLocal() {
+    const sesion = normalizarUsuario(leerJson(SESSION_KEY, null));
+    const candidato = sesion?.id
+      ? {
+          id: sesion.id,
+          usuario: {
+            id: sesion.id,
+            correo: sesion.email || "",
+            nombre: sesion.user_metadata?.nombre || "Usuario"
+          },
+          datos: datosUsuario(sesion.id)
+        }
+      : detectarMejorUsuarioLocal();
 
+    if (!candidato) return null;
+
+    const snapshot = {
+      version: 1,
+      guardadoEn: new Date().toISOString(),
+      usuario: candidato.usuario,
+      datos: candidato.datos
+    };
+
+    escribirJson(SNAPSHOT_KEY, snapshot);
+    return snapshot;
+  }
+
+  function restaurarSnapshotOffline() {
+    const snapshot = leerJson(SNAPSHOT_KEY, null);
+    if (!snapshot?.usuario?.id) return null;
+
+    const user = snapshot.usuario;
+    const datos = snapshot.datos || {};
+
+    escribirJson(SESSION_KEY, user);
+    escribirJson(`kf_${user.id}_movimientos`, Array.isArray(datos.movimientos) ? datos.movimientos : []);
+    escribirJson(`kf_${user.id}_fijos`, Array.isArray(datos.fijos) ? datos.fijos : []);
+    escribirJson(`kf_${user.id}_distribucion`, Array.isArray(datos.distribucion) ? datos.distribucion : []);
+
+    return normalizarUsuario(user);
+  }
+
+  function leerUsuarioOffline() {
+    const restaurado = restaurarSnapshotOffline();
+    if (restaurado) return restaurado;
+
+    return normalizarUsuario(leerJson(SESSION_KEY, null));
+  }
+
+  function sesionOffline() {
+    const user = leerUsuarioOffline();
     return user
       ? {
           access_token: "offline",
@@ -152,7 +162,29 @@
       : null;
   }
 
+  if (navigator.onLine) {
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        try {
+          crearSnapshotDesdeLocal();
+        } catch (error) {
+          console.warn("No se pudo crear snapshot offline:", error);
+        }
+      }, 0);
+    }, { once: true });
+    return;
+  }
+
   window.__KF_OFFLINE_MODE__ = true;
+
+  const usuarioOffline = leerUsuarioOffline();
+  if (usuarioOffline) {
+    escribirJson(SESSION_KEY, {
+      id: usuarioOffline.id,
+      nombre: usuarioOffline.user_metadata?.nombre || "Usuario",
+      correo: usuarioOffline.email || ""
+    });
+  }
 
   window.supabase = {
     createClient() {
@@ -161,14 +193,13 @@
       const auth = {
         async getSession() {
           return {
-            data: { session: sesionLocal() },
+            data: { session: sesionOffline() },
             error: null
           };
         },
 
         onAuthStateChange(callback) {
           listeners.add(callback);
-
           return {
             data: {
               subscription: {
@@ -225,7 +256,7 @@
 
         async updateUser() {
           return {
-            data: { user: leerUsuarioLocal() },
+            data: { user: usuarioOffline },
             error: {
               message:
                 "Sin conexión. Cambiar la contraseña requiere Internet."
@@ -237,9 +268,7 @@
       function builder() {
         const result = {
           data: null,
-          error: {
-            message: "Sin conexión"
-          }
+          error: { message: "Sin conexión" }
         };
 
         return {
