@@ -61,9 +61,9 @@
     s.textContent = `
       #${SELECTOR_ID}{display:flex;align-items:center;justify-content:flex-end;margin:0 0 16px;min-height:38px}
       #${SELECTOR_ID}::before{content:"Período";margin-right:10px;color:#475569;font-size:13px;font-weight:600}
-      #${SELECTOR_ID} select{appearance:none;min-width:148px;height:38px;padding:0 36px 0 13px;border:1px solid #2563eb;border-radius:9px;background:#2563eb;color:#fff;font:inherit;font-size:14px;font-weight:600;box-shadow:0 2px 7px rgba(37,99,235,.18);cursor:pointer;outline:none;background-image:linear-gradient(45deg,transparent 50%,#fff 50%),linear-gradient(135deg,#fff 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;transition:background .15s,box-shadow .15s,border-color .15s}
-      #${SELECTOR_ID} select:hover{background:#1d4ed8;border-color:#1d4ed8;box-shadow:0 3px 9px rgba(37,99,235,.22)}
-      #${SELECTOR_ID} select:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+      #${SELECTOR_ID} select{appearance:none;min-width:148px;height:38px;padding:0 36px 0 13px;border:1px solid #1e40af;border-radius:9px;background:#1e3a8a;color:#fff;font:inherit;font-size:14px;font-weight:600;box-shadow:0 2px 7px rgba(30,58,138,.16);cursor:pointer;outline:none;background-image:linear-gradient(45deg,transparent 50%,#fff 50%),linear-gradient(135deg,#fff 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;transition:background .15s,box-shadow .15s,border-color .15s}
+      #${SELECTOR_ID} select:hover{background:#1e40af;border-color:#1e40af;box-shadow:0 3px 9px rgba(30,64,175,.20)}
+      #${SELECTOR_ID} select:focus{border-color:#1e40af;box-shadow:0 0 0 3px rgba(30,64,175,.14)}
       #${SELECTOR_ID} select option{background:#fff;color:#1e293b;font-weight:600}
       @media(max-width:600px){#${SELECTOR_ID}{justify-content:space-between;margin-bottom:12px}#${SELECTOR_ID} select{min-width:0;width:155px}}
     `;
