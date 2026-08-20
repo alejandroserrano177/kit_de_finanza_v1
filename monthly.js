@@ -60,10 +60,11 @@
     s.id = STYLE_ID;
     s.textContent = `
       #${SELECTOR_ID}{display:flex;align-items:center;justify-content:flex-end;margin:0 0 16px;min-height:38px}
-      #${SELECTOR_ID}::before{content:"Período";margin-right:10px;color:#64748b;font-size:13px;font-weight:600}
-      #${SELECTOR_ID} select{appearance:none;min-width:148px;height:38px;padding:0 36px 0 13px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#1e293b;font:inherit;font-size:14px;font-weight:600;box-shadow:0 1px 3px rgba(15,23,42,.04);cursor:pointer;outline:none;background-image:linear-gradient(45deg,transparent 50%,#64748b 50%),linear-gradient(135deg,#64748b 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;transition:border-color .15s,box-shadow .15s}
-      #${SELECTOR_ID} select:hover{border-color:#cbd5e1}
-      #${SELECTOR_ID} select:focus{border-color:#94a3b8;box-shadow:0 0 0 3px rgba(100,116,139,.10)}
+      #${SELECTOR_ID}::before{content:"Período";margin-right:10px;color:#475569;font-size:13px;font-weight:600}
+      #${SELECTOR_ID} select{appearance:none;min-width:148px;height:38px;padding:0 36px 0 13px;border:1px solid #2563eb;border-radius:9px;background:#2563eb;color:#fff;font:inherit;font-size:14px;font-weight:600;box-shadow:0 2px 7px rgba(37,99,235,.18);cursor:pointer;outline:none;background-image:linear-gradient(45deg,transparent 50%,#fff 50%),linear-gradient(135deg,#fff 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;transition:background .15s,box-shadow .15s,border-color .15s}
+      #${SELECTOR_ID} select:hover{background:#1d4ed8;border-color:#1d4ed8;box-shadow:0 3px 9px rgba(37,99,235,.22)}
+      #${SELECTOR_ID} select:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+      #${SELECTOR_ID} select option{background:#fff;color:#1e293b;font-weight:600}
       @media(max-width:600px){#${SELECTOR_ID}{justify-content:space-between;margin-bottom:12px}#${SELECTOR_ID} select{min-width:0;width:155px}}
     `;
     document.head.appendChild(s);
