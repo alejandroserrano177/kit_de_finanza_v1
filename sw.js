@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v27";
+const CACHE_NAME = "kit-finanzas-v28";
 
 const APP_ASSETS = [
   "./",
@@ -9,6 +9,7 @@ const APP_ASSETS = [
   "./icon-192.svg",
   "./offline-boot.js",
   "./offline-idb-bridge.js",
+  "./offline-finalizer.js",
   "https://unpkg.com/dexie@4.4.4/dist/dexie.min.js"
 ];
 
@@ -23,9 +24,7 @@ self.addEventListener("install", event => {
       for (const asset of APP_ASSETS) {
         try {
           const response = await fetch(asset, { cache: "no-store" });
-          if (response.ok) {
-            await cache.put(asset, response.clone());
-          }
+          if (response.ok) await cache.put(asset, response.clone());
         } catch (error) {
           console.warn("No se pudo precachear:", asset, error);
         }
@@ -33,9 +32,7 @@ self.addEventListener("install", event => {
 
       try {
         const response = await fetch(SUPABASE_SCRIPT, { cache: "no-store" });
-        if (response.ok) {
-          await cache.put(SUPABASE_SCRIPT, response.clone());
-        }
+        if (response.ok) await cache.put(SUPABASE_SCRIPT, response.clone());
       } catch (error) {
         console.warn("No se pudo precachear Supabase:", error);
       }
@@ -67,7 +64,7 @@ self.addEventListener("fetch", event => {
       try {
         const response = await fetch(event.request, { cache: "no-store" });
 
-        if (response && response.ok) {
+        if (response?.ok) {
           try {
             const cache = await caches.open(CACHE_NAME);
             await cache.put(event.request, response.clone());
