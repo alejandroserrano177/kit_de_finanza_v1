@@ -1,6 +1,7 @@
 (() => {
   const SESSION_KEY = "kf_sesion_v2";
-  const SNAPSHOT_KEY = "kf_offline_snapshot_v1";
+  const SNAPSHOT_KEY = "kf_offline_snapshot_v2";
+  const GET_SESSION_TIMEOUT = 2500;
 
   function leerJson(key, fallback = null) {
     try {
@@ -45,262 +46,258 @@
     };
   }
 
-  function datosUsuario(userId) {
-    if (!userId) return null;
-
-    return {
-      movimientos:
-        leerJson(`kf_${userId}_movimientos`, []) || [],
-      fijos:
-        leerJson(`kf_${userId}_fijos`, []) || [],
-      distribucion:
-        leerJson(`kf_${userId}_distribucion`, []) || []
-    };
-  }
-
-  function puntuarDatos(datos) {
-    return (
-      (Array.isArray(datos.movimientos) ? datos.movimientos.length : 0) +
-      (Array.isArray(datos.fijos) ? datos.fijos.length : 0) +
-      (Array.isArray(datos.distribucion) ? datos.distribucion.length : 0)
+  function obtenerUsuarioLocal() {
+    const sesion = normalizarUsuario(
+      leerJson(SESSION_KEY, null)
     );
-  }
 
-  function detectarMejorUsuarioLocal() {
-    let mejorId = null;
-    let mejorDatos = null;
+    if (sesion?.id) {
+      return sesion;
+    }
+
+    let mejor = null;
     let mejorPuntaje = -1;
 
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
 
-      const match = key.match(/^kf_(.+)_(movimientos|fijos|distribucion)$/);
+      const match = key.match(
+        /^kf_(.+)_(movimientos|fijos|distribucion)$/
+      );
+
       if (!match) continue;
 
       const userId = match[1];
-      const datos = datosUsuario(userId);
-      const puntaje = puntuarDatos(datos);
+      let puntaje = 0;
+
+      for (const sufijo of [
+        "movimientos",
+        "fijos",
+        "distribucion"
+      ]) {
+        try {
+          const datos = JSON.parse(
+            localStorage.getItem(
+              `kf_${userId}_${sufijo}`
+            ) || "null"
+          );
+          if (Array.isArray(datos)) {
+            puntaje += datos.length;
+          }
+        } catch {}
+      }
 
       if (puntaje > mejorPuntaje) {
-        mejorId = userId;
-        mejorDatos = datos;
         mejorPuntaje = puntaje;
+        mejor = {
+          id: userId,
+          email: "",
+          user_metadata: {
+            nombre: "Usuario"
+          }
+        };
       }
     }
 
-    return mejorId
-      ? {
-          id: mejorId,
-          usuario: {
-            id: mejorId,
-            correo: "",
-            nombre: "Usuario"
-          },
-          datos: mejorDatos || datosUsuario(mejorId)
-        }
-      : null;
+    return mejor;
   }
 
-  function crearSnapshotDesdeLocal() {
-    const sesion = normalizarUsuario(leerJson(SESSION_KEY, null));
-    const candidato = sesion?.id
-      ? {
-          id: sesion.id,
-          usuario: {
-            id: sesion.id,
-            correo: sesion.email || "",
-            nombre: sesion.user_metadata?.nombre || "Usuario"
-          },
-          datos: datosUsuario(sesion.id)
-        }
-      : detectarMejorUsuarioLocal();
+  function crearSnapshot() {
+    const usuario = obtenerUsuarioLocal();
+    if (!usuario?.id) return;
 
-    if (!candidato) return null;
+    const id = usuario.id;
 
     const snapshot = {
-      version: 1,
+      version: 2,
       guardadoEn: new Date().toISOString(),
-      usuario: candidato.usuario,
-      datos: candidato.datos
+      usuario: {
+        id,
+        correo: usuario.email || "",
+        nombre:
+          usuario.user_metadata?.nombre ||
+          "Usuario"
+      },
+      movimientos:
+        leerJson(`kf_${id}_movimientos`, []) || [],
+      fijos:
+        leerJson(`kf_${id}_fijos`, []) || [],
+      distribucion:
+        leerJson(`kf_${id}_distribucion`, []) || []
     };
 
-    escribirJson(SNAPSHOT_KEY, snapshot);
-    return snapshot;
+    escribirJson(
+      SNAPSHOT_KEY,
+      snapshot
+    );
   }
 
-  function restaurarSnapshotOffline() {
-    const snapshot = leerJson(SNAPSHOT_KEY, null);
-    if (!snapshot?.usuario?.id) return null;
+  function restaurarSnapshot() {
+    const snapshot = leerJson(
+      SNAPSHOT_KEY,
+      null
+    );
+
+    if (!snapshot?.usuario?.id) {
+      return normalizarUsuario(
+        leerJson(SESSION_KEY, null)
+      );
+    }
 
     const user = snapshot.usuario;
-    const datos = snapshot.datos || {};
 
-    escribirJson(SESSION_KEY, user);
-    escribirJson(`kf_${user.id}_movimientos`, Array.isArray(datos.movimientos) ? datos.movimientos : []);
-    escribirJson(`kf_${user.id}_fijos`, Array.isArray(datos.fijos) ? datos.fijos : []);
-    escribirJson(`kf_${user.id}_distribucion`, Array.isArray(datos.distribucion) ? datos.distribucion : []);
+    escribirJson(
+      SESSION_KEY,
+      {
+        id: user.id,
+        nombre: user.nombre || "Usuario",
+        correo: user.correo || ""
+      }
+    );
+
+    escribirJson(
+      `kf_${user.id}_movimientos`,
+      Array.isArray(snapshot.movimientos)
+        ? snapshot.movimientos
+        : []
+    );
+
+    escribirJson(
+      `kf_${user.id}_fijos`,
+      Array.isArray(snapshot.fijos)
+        ? snapshot.fijos
+        : []
+    );
+
+    escribirJson(
+      `kf_${user.id}_distribucion`,
+      Array.isArray(snapshot.distribucion)
+        ? snapshot.distribucion
+        : []
+    );
 
     return normalizarUsuario(user);
   }
 
-  function leerUsuarioOffline() {
-    const restaurado = restaurarSnapshotOffline();
-    if (restaurado) return restaurado;
+  function sesionLocal() {
+    const user = restaurarSnapshot();
 
-    return normalizarUsuario(leerJson(SESSION_KEY, null));
-  }
-
-  function sesionOffline() {
-    const user = leerUsuarioOffline();
     return user
       ? {
-          access_token: "offline",
-          refresh_token: "offline",
+          access_token: "offline-local",
+          refresh_token: "offline-local",
           user
         }
       : null;
   }
 
-  if (navigator.onLine) {
-    window.addEventListener("load", () => {
-      setTimeout(() => {
-        try {
-          crearSnapshotDesdeLocal();
-        } catch (error) {
-          console.warn("No se pudo crear snapshot offline:", error);
-        }
-      }, 0);
-    }, { once: true });
+  function conTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error("TIMEOUT")),
+          ms
+        );
+      })
+    ]);
+  }
+
+  /*
+   * Importante:
+   * No reemplazamos Supabase completo.
+   * Conservamos el cliente real para login/registro/operaciones online
+   * y solo añadimos un fallback local a getSession().
+   */
+  const supabaseOriginal = window.supabase;
+
+  if (
+    !supabaseOriginal ||
+    typeof supabaseOriginal.createClient !== "function"
+  ) {
     return;
   }
 
-  window.__KF_OFFLINE_MODE__ = true;
+  const createClientOriginal =
+    supabaseOriginal.createClient.bind(
+      supabaseOriginal
+    );
 
-  const usuarioOffline = leerUsuarioOffline();
-  if (usuarioOffline) {
-    escribirJson(SESSION_KEY, {
-      id: usuarioOffline.id,
-      nombre: usuarioOffline.user_metadata?.nombre || "Usuario",
-      correo: usuarioOffline.email || ""
-    });
-  }
+  supabaseOriginal.createClient = function (...args) {
+    const client = createClientOriginal(...args);
 
-  window.supabase = {
-    createClient() {
-      const listeners = new Set();
+    if (
+      !client?.auth ||
+      typeof client.auth.getSession !== "function"
+    ) {
+      return client;
+    }
 
-      const auth = {
-        async getSession() {
-          return {
-            data: { session: sesionOffline() },
-            error: null
-          };
-        },
+    const getSessionOriginal =
+      client.auth.getSession.bind(
+        client.auth
+      );
 
-        onAuthStateChange(callback) {
-          listeners.add(callback);
-          return {
-            data: {
-              subscription: {
-                unsubscribe() {
-                  listeners.delete(callback);
-                }
-              }
+    client.auth.getSession = async function () {
+      let remoto = null;
+
+      try {
+        remoto = await conTimeout(
+          getSessionOriginal(),
+          GET_SESSION_TIMEOUT
+        );
+      } catch (error) {
+        console.warn(
+          "Supabase no respondió a tiempo; usando sesión local:",
+          error
+        );
+      }
+
+      if (remoto?.data?.session?.user) {
+        try {
+          escribirJson(
+            SESSION_KEY,
+            {
+              id: remoto.data.session.user.id,
+              nombre:
+                remoto.data.session.user.user_metadata?.nombre ||
+                remoto.data.session.user.email ||
+                "Usuario",
+              correo:
+                remoto.data.session.user.email ||
+                ""
             }
-          };
-        },
-
-        async signOut() {
-          try {
-            localStorage.removeItem(SESSION_KEY);
-          } catch {}
-
-          for (const callback of listeners) {
-            try {
-              callback("SIGNED_OUT", null);
-            } catch {}
-          }
-
-          return { error: null };
-        },
-
-        async signInWithPassword() {
-          return {
-            data: { user: null, session: null },
-            error: {
-              message:
-                "Sin conexión. Debes haber iniciado sesión previamente para usar la aplicación offline."
-            }
-          };
-        },
-
-        async signUp() {
-          return {
-            data: { user: null, session: null },
-            error: {
-              message:
-                "Sin conexión. Crear una cuenta requiere Internet."
-            }
-          };
-        },
-
-        async resetPasswordForEmail() {
-          return {
-            error: {
-              message:
-                "Sin conexión. La recuperación de contraseña requiere Internet."
-            }
-          };
-        },
-
-        async updateUser() {
-          return {
-            data: { user: usuarioOffline },
-            error: {
-              message:
-                "Sin conexión. Cambiar la contraseña requiere Internet."
-            }
-          };
+          );
+          crearSnapshot();
+        } catch (error) {
+          console.warn(
+            "No se pudo actualizar respaldo local:",
+            error
+          );
         }
-      };
 
-      function builder() {
-        const result = {
-          data: null,
-          error: { message: "Sin conexión" }
-        };
+        return remoto;
+      }
 
+      const local = sesionLocal();
+
+      if (local) {
+        window.__KF_OFFLINE_FALLBACK__ = true;
         return {
-          select() { return this; },
-          eq() { return this; },
-          order() { return this; },
-          single() { return this; },
-          then(resolve, reject) {
-            return Promise.resolve(result).then(resolve, reject);
+          data: {
+            session: local
           },
-          catch(reject) {
-            return Promise.resolve(result).catch(reject);
-          },
-          upsert: async () => result,
-          insert: async () => result,
-          update: async () => result,
-          delete: async () => result
+          error: null
         };
       }
 
-      return {
-        auth,
-        from() {
-          return builder();
-        }
+      return remoto || {
+        data: { session: null },
+        error: null
       };
-    }
-  };
+    };
 
-  window.addEventListener("online", () => {
-    if (window.__KF_OFFLINE_MODE__) {
-      window.location.reload();
-    }
-  }, { once: true });
+    return client;
+  };
 })();
