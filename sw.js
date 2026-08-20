@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v29";
+const CACHE_NAME = "kit-finanzas-v30";
 
 const APP_ASSETS = [
   "./",
@@ -9,6 +9,7 @@ const APP_ASSETS = [
   "./icon-192.svg",
   "./offline-boot.js",
   "./offline.js",
+  "./monthly.js",
   "https://unpkg.com/dexie@4.4.4/dist/dexie.min.js"
 ];
 
