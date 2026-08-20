@@ -1,4 +1,4 @@
-const CACHE_NAME = "kit-finanzas-v24";
+const CACHE_NAME = "kit-finanzas-v25";
 
 const APP_ASSETS = [
   "./",
@@ -13,91 +13,6 @@ const APP_ASSETS = [
 const SUPABASE_SCRIPT =
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 
-function transformarIndex(html) {
-  if (html.includes("offline-boot.js")) {
-    return html;
-  }
-
-  const patrones = [
-    '<script src="./app.js"',
-    '<script src="app.js"',
-    "<script src='./app.js'",
-    "<script src='app.js'"
-  ];
-
-  for (const patron of patrones) {
-    if (html.includes(patron)) {
-      return html.replace(
-        patron,
-        '<script src="./offline-boot.js"></script>\n    ' + patron
-      );
-    }
-  }
-
-  return html;
-}
-
-async function cacheRespuesta(request, response) {
-  if (!response || !response.ok) {
-    return response;
-  }
-
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const isNavigation =
-      request.mode === "navigate" ||
-      new URL(request.url).pathname.endsWith("/index.html");
-
-    if (isNavigation) {
-      const html = await response.clone().text();
-      const transformado = new Response(
-        transformarIndex(html),
-        {
-          headers: {
-            "Content-Type": "text/html; charset=UTF-8",
-            "Cache-Control": "no-store"
-          }
-        }
-      );
-
-      await cache.put(request, transformado.clone());
-      return transformado;
-    }
-
-    await cache.put(request, response.clone());
-  } catch (error) {
-    console.warn("No se pudo actualizar caché:", error);
-  }
-
-  return response;
-}
-
-async function obtenerAppOffline() {
-  const cache = await caches.open(CACHE_NAME);
-
-  const appResponse = await cache.match("./app.js");
-  const bootResponse = await cache.match("./offline-boot.js");
-
-  if (!appResponse || !bootResponse) {
-    return appResponse || null;
-  }
-
-  const [boot, app] = await Promise.all([
-    bootResponse.text(),
-    appResponse.text()
-  ]);
-
-  return new Response(
-    `${boot}\n\n/* OFFLINE APP BOOT */\n${app}`,
-    {
-      headers: {
-        "Content-Type": "application/javascript; charset=UTF-8",
-        "Cache-Control": "no-store"
-      }
-    }
-  );
-}
-
 self.addEventListener("install", event => {
   event.waitUntil(
     (async () => {
@@ -105,24 +20,19 @@ self.addEventListener("install", event => {
 
       for (const asset of APP_ASSETS) {
         try {
-          const response = await fetch(asset, { cache: "no-store" });
-          if (!response.ok) continue;
+          const response = await fetch(asset, {
+            cache: "no-store"
+          });
 
-          if (asset === "./index.html") {
-            const html = await response.clone().text();
-            await cache.put(
-              asset,
-              new Response(transformarIndex(html), {
-                headers: {
-                  "Content-Type": "text/html; charset=UTF-8"
-                }
-              })
-            );
-          } else {
+          if (response.ok) {
             await cache.put(asset, response.clone());
           }
         } catch (error) {
-          console.warn("No se pudo precachear:", asset, error);
+          console.warn(
+            "No se pudo precachear:",
+            asset,
+            error
+          );
         }
       }
 
@@ -132,10 +42,16 @@ self.addEventListener("install", event => {
         });
 
         if (response.ok) {
-          await cache.put(SUPABASE_SCRIPT, response.clone());
+          await cache.put(
+            SUPABASE_SCRIPT,
+            response.clone()
+          );
         }
       } catch (error) {
-        console.warn("No se pudo precachear Supabase:", error);
+        console.warn(
+          "No se pudo precachear Supabase:",
+          error
+        );
       }
 
       await self.skipWaiting();
@@ -160,36 +76,50 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
+  if (event.request.method !== "GET") {
+    return;
+  }
 
   event.respondWith(
     (async () => {
-      const url = new URL(event.request.url);
-
-      if (
-        !navigator.onLine &&
-        url.pathname.endsWith("/app.js")
-      ) {
-        const offlineApp = await obtenerAppOffline();
-        if (offlineApp) return offlineApp;
-      }
-
       try {
         const response = await fetch(event.request, {
           cache: "no-store"
         });
 
-        return await cacheRespuesta(event.request, response);
-      } catch {
-        const cached = await caches.match(event.request);
+        if (response && response.ok) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(
+              event.request,
+              response.clone()
+            );
+          } catch (cacheError) {
+            console.warn(
+              "No se pudo actualizar caché:",
+              cacheError
+            );
+          }
+        }
+
+        return response;
+      } catch (error) {
+        const cached = await caches.match(
+          event.request
+        );
 
         if (cached) {
           return cached;
         }
 
         if (event.request.mode === "navigate") {
-          const index = await caches.match("./index.html");
-          if (index) return index;
+          const index = await caches.match(
+            "./index.html"
+          );
+
+          if (index) {
+            return index;
+          }
         }
 
         return new Response("Sin conexión", {
