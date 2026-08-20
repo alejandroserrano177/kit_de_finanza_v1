@@ -1,9 +1,16 @@
 (() => {
   /*
-   * Cargamos el puente IndexedDB de forma síncrona durante el parseo
-   * para garantizar que termina antes de que el navegador ejecute app.js.
-   * El puente conserva Supabase real online y actúa como capa local offline.
+   * Orden de arranque offline-first:
+   * 1) Dexie.js
+   * 2) Puente IndexedDB / Supabase offline
+   * 3) app.js (ya presente en index.html)
+   *
+   * document.write() mantiene el orden de ejecución durante el parseo.
    */
+  document.write(
+    '<script src="https://unpkg.com/dexie@4.4.4/dist/dexie.min.js"></script>'
+  );
+
   document.write(
     '<script src="./offline-idb-bridge.js"></script>'
   );
