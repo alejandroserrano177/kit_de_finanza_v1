@@ -1,6 +1,6 @@
 (() => {
   const SESSION_KEY = "kf_sesion_v2";
-  const SNAPSHOT_KEY = "kf_offline_snapshot_v2";
+  const SNAPSHOT_KEY = "kf_offline_snapshot_v3";
   const GET_SESSION_TIMEOUT = 2500;
 
   function leerJson(key, fallback = null) {
@@ -46,15 +46,34 @@
     };
   }
 
-  function obtenerUsuarioLocal() {
-    const sesion = normalizarUsuario(
-      leerJson(SESSION_KEY, null)
-    );
-
-    if (sesion?.id) {
-      return sesion;
+  function leerDatosUsuario(userId) {
+    if (!userId) {
+      return {
+        movimientos: [],
+        fijos: [],
+        distribucion: []
+      };
     }
 
+    return {
+      movimientos:
+        leerJson(`kf_${userId}_movimientos`, []) || [],
+      fijos:
+        leerJson(`kf_${userId}_fijos`, []) || [],
+      distribucion:
+        leerJson(`kf_${userId}_distribucion`, []) || []
+    };
+  }
+
+  function puntajeDatos(datos) {
+    return (
+      (Array.isArray(datos.movimientos) ? datos.movimientos.length : 0) +
+      (Array.isArray(datos.fijos) ? datos.fijos.length : 0) +
+      (Array.isArray(datos.distribucion) ? datos.distribucion.length : 0)
+    );
+  }
+
+  function detectarUsuarioConDatos() {
     let mejor = null;
     let mejorPuntaje = -1;
 
@@ -69,24 +88,8 @@
       if (!match) continue;
 
       const userId = match[1];
-      let puntaje = 0;
-
-      for (const sufijo of [
-        "movimientos",
-        "fijos",
-        "distribucion"
-      ]) {
-        try {
-          const datos = JSON.parse(
-            localStorage.getItem(
-              `kf_${userId}_${sufijo}`
-            ) || "null"
-          );
-          if (Array.isArray(datos)) {
-            puntaje += datos.length;
-          }
-        } catch {}
-      }
+      const datos = leerDatosUsuario(userId);
+      const puntaje = puntajeDatos(datos);
 
       if (puntaje > mejorPuntaje) {
         mejorPuntaje = puntaje;
@@ -103,14 +106,48 @@
     return mejor;
   }
 
+  function usuarioLocalActual() {
+    const sesion = normalizarUsuario(
+      leerJson(SESSION_KEY, null)
+    );
+
+    if (sesion?.id) {
+      return sesion;
+    }
+
+    return detectarUsuarioConDatos();
+  }
+
+  function snapshotExistente() {
+    return leerJson(SNAPSHOT_KEY, null);
+  }
+
   function crearSnapshot() {
-    const usuario = obtenerUsuarioLocal();
-    if (!usuario?.id) return;
+    const usuario = usuarioLocalActual();
+    if (!usuario?.id) return null;
 
     const id = usuario.id;
+    const datos = leerDatosUsuario(id);
+    const puntajeActual = puntajeDatos(datos);
+    const anterior = snapshotExistente();
+    const puntajeAnterior = anterior
+      ? puntajeDatos({
+          movimientos: anterior.movimientos,
+          fijos: anterior.fijos,
+          distribucion: anterior.distribucion
+        })
+      : -1;
+
+    // Nunca sustituir un respaldo válido por uno vacío o claramente incompleto.
+    if (
+      anterior?.usuario?.id === id &&
+      puntajeActual < puntajeAnterior
+    ) {
+      return anterior;
+    }
 
     const snapshot = {
-      version: 2,
+      version: 3,
       guardadoEn: new Date().toISOString(),
       usuario: {
         id,
@@ -119,69 +156,107 @@
           usuario.user_metadata?.nombre ||
           "Usuario"
       },
-      movimientos:
-        leerJson(`kf_${id}_movimientos`, []) || [],
-      fijos:
-        leerJson(`kf_${id}_fijos`, []) || [],
-      distribucion:
-        leerJson(`kf_${id}_distribucion`, []) || []
+      movimientos: datos.movimientos,
+      fijos: datos.fijos,
+      distribucion: datos.distribucion
     };
 
-    escribirJson(
-      SNAPSHOT_KEY,
-      snapshot
-    );
+    escribirJson(SNAPSHOT_KEY, snapshot);
+    return snapshot;
   }
 
-  function restaurarSnapshot() {
-    const snapshot = leerJson(
-      SNAPSHOT_KEY,
-      null
-    );
+  function restaurarSesionYSoloDatosFaltantes() {
+    let usuario = usuarioLocalActual();
 
-    if (!snapshot?.usuario?.id) {
-      return normalizarUsuario(
-        leerJson(SESSION_KEY, null)
-      );
+    const snapshot = snapshotExistente();
+
+    if (!usuario?.id && snapshot?.usuario?.id) {
+      usuario = normalizarUsuario(snapshot.usuario);
     }
 
-    const user = snapshot.usuario;
+    if (!usuario?.id) {
+      return null;
+    }
+
+    const id = usuario.id;
+    const actuales = leerDatosUsuario(id);
+    const actualesPuntaje = puntajeDatos(actuales);
+
+    // El estado local real tiene prioridad.
+    // El snapshot solo completa lo que falte.
+    if (
+      snapshot?.usuario?.id === id
+    ) {
+      const snapshotDatos = {
+        movimientos: Array.isArray(snapshot.movimientos)
+          ? snapshot.movimientos
+          : [],
+        fijos: Array.isArray(snapshot.fijos)
+          ? snapshot.fijos
+          : [],
+        distribucion: Array.isArray(snapshot.distribucion)
+          ? snapshot.distribucion
+          : []
+      };
+
+      const snapshotPuntaje = puntajeDatos(snapshotDatos);
+
+      if (actualesPuntaje === 0 && snapshotPuntaje > 0) {
+        escribirJson(
+          `kf_${id}_movimientos`,
+          snapshotDatos.movimientos
+        );
+        escribirJson(
+          `kf_${id}_fijos`,
+          snapshotDatos.fijos
+        );
+        escribirJson(
+          `kf_${id}_distribucion`,
+          snapshotDatos.distribucion
+        );
+      } else {
+        // Si existe información local, jamás la reemplazamos por un snapshot vacío.
+        if (!Array.isArray(actuales.movimientos)) {
+          escribirJson(
+            `kf_${id}_movimientos`,
+            snapshotDatos.movimientos
+          );
+        }
+        if (!Array.isArray(actuales.fijos)) {
+          escribirJson(
+            `kf_${id}_fijos`,
+            snapshotDatos.fijos
+          );
+        }
+        if (!Array.isArray(actuales.distribucion)) {
+          escribirJson(
+            `kf_${id}_distribucion`,
+            snapshotDatos.distribucion
+          );
+        }
+      }
+    }
+
+    const usuarioNormalizado = normalizarUsuario(usuario);
 
     escribirJson(
       SESSION_KEY,
       {
-        id: user.id,
-        nombre: user.nombre || "Usuario",
-        correo: user.correo || ""
+        id: usuarioNormalizado.id,
+        nombre:
+          usuarioNormalizado.user_metadata?.nombre ||
+          "Usuario",
+        correo:
+          usuarioNormalizado.email ||
+          ""
       }
     );
 
-    escribirJson(
-      `kf_${user.id}_movimientos`,
-      Array.isArray(snapshot.movimientos)
-        ? snapshot.movimientos
-        : []
-    );
-
-    escribirJson(
-      `kf_${user.id}_fijos`,
-      Array.isArray(snapshot.fijos)
-        ? snapshot.fijos
-        : []
-    );
-
-    escribirJson(
-      `kf_${user.id}_distribucion`,
-      Array.isArray(snapshot.distribucion)
-        ? snapshot.distribucion
-        : []
-    );
-
-    return normalizarUsuario(user);
+    return usuarioNormalizado;
   }
 
   function sesionLocal() {
-    const user = restaurarSnapshot();
+    const user = restaurarSesionYSoloDatosFaltantes();
 
     return user
       ? {
@@ -204,12 +279,6 @@
     ]);
   }
 
-  /*
-   * Importante:
-   * No reemplazamos Supabase completo.
-   * Conservamos el cliente real para login/registro/operaciones online
-   * y solo añadimos un fallback local a getSession().
-   */
   const supabaseOriginal = window.supabase;
 
   if (
@@ -249,26 +318,29 @@
         );
       } catch (error) {
         console.warn(
-          "Supabase no respondió a tiempo; usando sesión local:",
+          "Supabase no respondió a tiempo; usando respaldo local:",
           error
         );
       }
 
       if (remoto?.data?.session?.user) {
         try {
+          const user = remoto.data.session.user;
+
           escribirJson(
             SESSION_KEY,
             {
-              id: remoto.data.session.user.id,
+              id: user.id,
               nombre:
-                remoto.data.session.user.user_metadata?.nombre ||
-                remoto.data.session.user.email ||
+                user.user_metadata?.nombre ||
+                user.email ||
                 "Usuario",
               correo:
-                remoto.data.session.user.email ||
+                user.email ||
                 ""
             }
           );
+
           crearSnapshot();
         } catch (error) {
           console.warn(
@@ -284,6 +356,7 @@
 
       if (local) {
         window.__KF_OFFLINE_FALLBACK__ = true;
+
         return {
           data: {
             session: local
@@ -293,7 +366,9 @@
       }
 
       return remoto || {
-        data: { session: null },
+        data: {
+          session: null
+        },
         error: null
       };
     };
