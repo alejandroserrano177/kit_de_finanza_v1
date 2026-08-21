@@ -8,11 +8,14 @@
     '<script src="./offline.js"></script>'
   );
 
-  document.write(
-    '<script src="./subcategoria-alimentacion.js"></script>'
-  );
-
-  document.write(
-    '<script src="./subcategoria-hogar.js"></script>'
-  );
+  window.addEventListener("load", () => {
+    setTimeout(() => {
+      ["./subcategoria-alimentacion.js", "./subcategoria-hogar.js"].forEach(src => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = false;
+        document.body.appendChild(script);
+      });
+    }, 0);
+  });
 })();
