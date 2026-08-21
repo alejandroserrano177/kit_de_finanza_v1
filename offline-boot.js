@@ -7,4 +7,8 @@
   document.write(
     '<script src="./offline.js"></script>'
   );
+
+  document.write(
+    '<script src="./subcategoria-alimentacion.js"></script>'
+  );
 })();
