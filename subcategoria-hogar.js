@@ -40,7 +40,8 @@
       const select = crearSelect("subcategoriaHogar", categoria);
       const actualizar = () => {
         const visible = esHogar(categoria.value);
-        document.getElementById("subcategoriaHogarContenedor").style.display = visible ? "block" : "none";
+        const contenedor = document.getElementById("subcategoriaHogarContenedor");
+        if (contenedor) contenedor.style.display = visible ? "block" : "none";
         if (!visible) select.value = "";
       };
       categoria.addEventListener("change", actualizar);
@@ -52,7 +53,8 @@
       const select = crearSelect("editarSubcategoriaHogar", editarCategoria);
       const actualizar = () => {
         const visible = esHogar(editarCategoria.value);
-        document.getElementById("editarSubcategoriaHogarContenedor").style.display = visible ? "block" : "none";
+        const contenedor = document.getElementById("editarSubcategoriaHogarContenedor");
+        if (contenedor) contenedor.style.display = visible ? "block" : "none";
         if (!visible) select.value = "";
       };
       editarCategoria.addEventListener("change", actualizar);
@@ -62,9 +64,7 @@
     const originalMovimientoASupabase = movimientoASupabase;
     movimientoASupabase = function (m) {
       const row = originalMovimientoASupabase(m);
-      row.subcategoria_hogar = esHogar(m.categoria)
-        ? (m.subcategoria_hogar || document.getElementById("subcategoriaHogar")?.value || null)
-        : null;
+      row.subcategoria_hogar = esHogar(m.categoria) ? (m.subcategoria_hogar || document.getElementById("subcategoriaHogar")?.value || null) : null;
       return row;
     };
 
@@ -102,16 +102,19 @@
         setTimeout(() => {
           const m = movimientos.find(x => x.id === id);
           const s = document.getElementById("editarSubcategoriaHogar");
-          if (m && s) {
+          const c = document.getElementById("editarSubcategoriaHogarContenedor");
+          if (m && s && c) {
             s.value = m.subcategoria_hogar || "";
-            document.getElementById("editarSubcategoriaHogarContenedor").style.display = esHogar(m.categoria) ? "block" : "none";
+            c.style.display = esHogar(m.categoria) ? "block" : "none";
           }
         }, 0);
       };
     }
   }
 
-  window.addEventListener("load", () => {
+  const arrancar = () => {
     try { iniciarSubcategoriasHogar(); } catch (e) { console.error("Error inicializando subcategorías de hogar:", e); }
-  });
+  };
+  if (document.readyState === "loading") window.addEventListener("load", arrancar, { once: true });
+  else arrancar();
 })();
