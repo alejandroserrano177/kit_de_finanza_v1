@@ -7,8 +7,8 @@
     const esAlimentacion = categoriaId => {
       if (!categoriaId || !Array.isArray(distribucion)) return false;
       const c = distribucion.find(x => x.id === categoriaId);
-      return String(c?.nombre || "").trim().toLowerCase() === "alimentación" ||
-             String(c?.nombre || "").trim().toLowerCase() === "alimentacion";
+      const nombre = String(c?.nombre || "").trim().toLowerCase();
+      return nombre === "alimentación" || nombre === "alimentacion";
     };
 
     const crearSelect = (id, label, insertAfter) => {
@@ -129,74 +129,40 @@
       );
     };
 
-    const actualizarEdicionDesdeMovimiento = id => {
-      const m = movimientos.find(x => x.id === id);
-      const select = document.getElementById("editarSubcategoriaAlimentacion");
-      if (!m || !select) return;
-      select.value = m.subcategoria || "";
-      document.getElementById("editarSubcategoriaAlimentacionContenedor").style.display =
-        esAlimentacion(m.categoria) ? "block" : "none";
-    };
-
     const originalEditarMovimiento = window.editarMovimiento;
     if (typeof originalEditarMovimiento === "function") {
       window.editarMovimiento = id => {
         originalEditarMovimiento(id);
-        setTimeout(() => actualizarEdicionDesdeMovimiento(id), 0);
+        setTimeout(() => {
+          const m = movimientos.find(x => x.id === id);
+          const select = document.getElementById("editarSubcategoriaAlimentacion");
+          const contenedor = document.getElementById("editarSubcategoriaAlimentacionContenedor");
+          if (!m || !select || !contenedor) return;
+          select.value = m.subcategoria || "";
+          contenedor.style.display = esAlimentacion(m.categoria) ? "block" : "none";
+        }, 0);
       };
     }
-
-    const filtroCategoria = document.getElementById("filtroCategoria");
-    if (filtroCategoria && !document.getElementById("filtroSubcategoriaAlimentacion")) {
-      const filtro = document.createElement("select");
-      filtro.id = "filtroSubcategoriaAlimentacion";
-      filtro.innerHTML = `
-        <option value="todas">Todas las subcategorías</option>
-        <option value="mercado">🛒 Mercado</option>
-        <option value="comida_fuera">🍔 Comida fuera</option>
-      `;
-      filtro.style.display = "none";
-      filtroCategoria.parentNode.insertBefore(filtro, filtroCategoria.nextSibling);
-
-      filtroCategoria.addEventListener("change", () => {
-        const c = distribucion.find(x => x.id === filtroCategoria.value);
-        const visible = String(c?.nombre || "").trim().toLowerCase() === "alimentación" ||
-          String(c?.nombre || "").trim().toLowerCase() === "alimentacion";
-        filtro.style.display = visible ? "block" : "none";
-        if (!visible) filtro.value = "todas";
-        if (typeof renderHistorial === "function") renderHistorial(true);
-      });
-
-      filtro.addEventListener("change", () => {
-        if (typeof renderHistorial === "function") renderHistorial(true);
-      });
-    }
-
-    const originalRenderHistorial = renderHistorial;
-    renderHistorial = function (completo = false) {
-      originalRenderHistorial(completo);
-      const filtroSub = document.getElementById("filtroSubcategoriaAlimentacion")?.value || "todas";
-      if (filtroSub === "todas") return;
-
-      const box = document.getElementById("historialMovimientos");
-      if (!box) return;
-      const movimientosFiltrados = movimientos.filter(m =>
-        m.subcategoria === filtroSub && m.tipo === "gasto"
-      );
-
-      const textoActual = box.innerHTML;
-      if (!movimientosFiltrados.length) {
-        box.innerHTML = `<div class="historial-vacio"><span>📋</span>No hay movimientos con esta subcategoría.</div>`;
-      }
-    };
 
     const formGasto = document.getElementById("formGasto");
     if (formGasto) {
       formGasto.addEventListener("reset", () => {
         setTimeout(() => {
           const s = document.getElementById("subcategoriaAlimentacion");
-          if (s) s.value = "";
           const c = document.getElementById("subcategoriaAlimentacionContenedor");
+          if (s) s.value = "";
+          if (c) c.style.display = "none";
+        }, 0);
+      });
+    }
+
+    const formEdicion = document.getElementById("formEdicion");
+    if (formEdicion) {
+      formEdicion.addEventListener("reset", () => {
+        setTimeout(() => {
+          const s = document.getElementById("editarSubcategoriaAlimentacion");
+          const c = document.getElementById("editarSubcategoriaAlimentacionContenedor");
+          if (s) s.value = "";
           if (c) c.style.display = "none";
         }, 0);
       });
