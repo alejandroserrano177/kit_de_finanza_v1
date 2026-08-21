@@ -11,4 +11,8 @@
   document.write(
     '<script src="./subcategoria-alimentacion.js"></script>'
   );
+
+  document.write(
+    '<script src="./subcategoria-hogar.js"></script>'
+  );
 })();
